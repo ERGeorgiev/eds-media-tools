@@ -71,7 +71,7 @@ public partial class DateResolver(MetadataService metadataService)
     /// Supports 13-digit millisecond timestamps and 10-digit second timestamps.
     /// Only considers timestamps that resolve to dates from year 2000 onward.
     /// </summary>
-    public static DateTime? ExtractTimestampFromFilename(string fileName)
+    public DateTime? ExtractTimestampFromFilename(string fileName)
     {
         // Try 13-digit millisecond timestamp first (more specific)
         var match = TimestampMillisPattern().Match(fileName);
