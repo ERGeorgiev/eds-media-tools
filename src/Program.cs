@@ -11,7 +11,8 @@ Console.WriteLine("  Prepare your media files for storage.");
 Console.WriteLine("================================================");
 Console.WriteLine();
 
-if (Debugger.IsAttached) args = [$"{Path.Combine(Directory.GetCurrentDirectory(), "TestData")}"];
+if (Debugger.IsAttached) 
+    args = [$"{Path.Combine(Directory.GetCurrentDirectory(), "TestData")}", $"{Path.Combine(Directory.GetCurrentDirectory(), "TestData2")}"];
 
 // Validate input paths
 if (args.Length == 0)
