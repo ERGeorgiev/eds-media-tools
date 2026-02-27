@@ -79,7 +79,7 @@ foreach (var inputPath in args)
 
     // Process files with limited parallelism
     var semaphore = new SemaphoreSlim(10);
-    var tasks = files.Select(async file =>
+    var tasks = supportedFiles.Select(async file =>
     {
         await semaphore.WaitAsync();
         try
