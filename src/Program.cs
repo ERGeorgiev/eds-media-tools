@@ -1,6 +1,7 @@
 using EdsMediaArchiver;
 using EdsMediaArchiver.Models;
 using EdsMediaArchiver.Services;
+using System.Diagnostics;
 using System.Reflection;
 
 Console.WriteLine();
@@ -9,6 +10,8 @@ Console.WriteLine($"  Ed's Media Archiver v{Assembly.GetEntryAssembly()?.GetName
 Console.WriteLine("  Prepare your media files for storage.");
 Console.WriteLine("================================================");
 Console.WriteLine();
+
+if (Debugger.IsAttached) args = [$"{Path.Combine(Directory.GetCurrentDirectory(), "TestData")}"];
 
 // Validate input paths
 if (args.Length == 0)
@@ -52,7 +55,8 @@ foreach (var inputPath in args)
     Console.WriteLine();
 
     FileSystemInfo targetInfo = new FileInfo(inputPath);
-    if (targetInfo.Exists == false)
+    var exists = (int)targetInfo.Attributes != -1;
+    if (exists == false)
     {
         Console.Error.WriteLine($"[ERROR] Target not found: {inputPath}");
         continue;
@@ -60,7 +64,7 @@ foreach (var inputPath in args)
 
     string dirPath;
     List<string> files;
-    if (targetInfo is DirectoryInfo) // It's a directory
+    if (targetInfo.Attributes.HasFlag(FileAttributes.Directory)) // It's a directory
     {
         dirPath = inputPath;
         files = Directory.EnumerateFiles(inputPath, "*", SearchOption.AllDirectories).ToList();
@@ -156,5 +160,7 @@ Console.WriteLine("================================================");
 Console.WriteLine("  All done!");
 Console.WriteLine("================================================");
 Console.WriteLine();
+Console.Write("Press any key to exit...");
+Console.ReadLine();
 
 return 0;
