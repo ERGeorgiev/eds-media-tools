@@ -4,6 +4,7 @@ using MetadataExtractor;
 using MetadataExtractor.Formats.Exif;
 using MetadataExtractor.Formats.QuickTime;
 using MetadataExtractor.Formats.Xmp;
+using MetadataExtractor.Util;
 
 namespace PersonalMediaArchiver.Services;
 

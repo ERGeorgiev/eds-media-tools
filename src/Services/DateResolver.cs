@@ -9,25 +9,18 @@ namespace PersonalMediaArchiver.Services;
 ///   3. Unix timestamp embedded in filename
 ///   4. Oldest from other trusted EXIF/XMP tags + filesystem dates
 /// </summary>
-public class DateResolver
+public partial class DateResolver(MetadataService metadataService)
 {
-    private readonly MetadataService _metadata;
+    [GeneratedRegex(@"(?<!\d)(\d{13})(?!\d)", RegexOptions.Compiled)]
+    private static partial Regex TimestampMillisPattern();
 
-    private static readonly Regex TimestampMillisPattern =
-        new(@"(?<!\d)(\d{13})(?!\d)", RegexOptions.Compiled);
-
-    private static readonly Regex TimestampSecondsPattern =
-        new(@"(?<!\d)(\d{10})(?!\d)", RegexOptions.Compiled);
-
-    public DateResolver(MetadataService metadata)
-    {
-        _metadata = metadata;
-    }
+    [GeneratedRegex(@"(?<!\d)(\d{10})(?!\d)", RegexOptions.Compiled)]
+    private static partial Regex TimestampSecondsPattern();
 
     public DateTime? ResolveBestDate(string filePath)
     {
         // 1. DateTimeOriginal wins unconditionally
-        var dto = _metadata.GetDateTimeOriginal(filePath);
+        var dto = metadataService.GetDateTimeOriginal(filePath);
         if (dto.HasValue) return dto;
 
         // 2. Filename date is second priority
@@ -42,7 +35,7 @@ public class DateResolver
         return GetOldestCandidateDate(filePath);
     }
 
-    public static DateTime? ExtractDateFromFilename(string fileName)
+    public DateTime? ExtractDateFromFilename(string fileName)
     {
         foreach (var pattern in Constants.FilenamePatterns)
         {
@@ -81,7 +74,7 @@ public class DateResolver
     public static DateTime? ExtractTimestampFromFilename(string fileName)
     {
         // Try 13-digit millisecond timestamp first (more specific)
-        var match = TimestampMillisPattern.Match(fileName);
+        var match = TimestampMillisPattern().Match(fileName);
         if (match.Success && long.TryParse(match.Groups[1].Value, out var ms))
         {
             var dt = DateTimeOffset.FromUnixTimeMilliseconds(ms).LocalDateTime;
@@ -90,7 +83,7 @@ public class DateResolver
         }
 
         // Try 10-digit second timestamp
-        match = TimestampSecondsPattern.Match(fileName);
+        match = TimestampSecondsPattern().Match(fileName);
         if (match.Success && long.TryParse(match.Groups[1].Value, out var sec))
         {
             var dt = DateTimeOffset.FromUnixTimeSeconds(sec).LocalDateTime;
@@ -106,7 +99,7 @@ public class DateResolver
         var candidates = new List<DateTime>();
 
         // Other trusted EXIF/XMP tags
-        var metadataDates = _metadata.GetOtherTrustedDates(filePath);
+        var metadataDates = metadataService.GetOtherTrustedDates(filePath);
         candidates.AddRange(metadataDates);
 
         // Filesystem dates

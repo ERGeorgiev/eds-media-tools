@@ -6,33 +6,22 @@ namespace PersonalMediaArchiver.Services;
 /// Processes a single media file: detects type, fixes extension, resolves best date,
 /// converts XMP-only formats if needed, and writes metadata + filesystem dates.
 /// </summary>
-public class MediaFileProcessor
+public class MediaFileProcessor(ImageMagickService magick, MetadataService metadataService, DateResolver dateResolver)
 {
-    private readonly MetadataService _metadata;
-    private readonly ImageMagickService _magick;
-    private readonly DateResolver _dateResolver;
-
-    public MediaFileProcessor(MetadataService metadata, ImageMagickService magick)
-    {
-        _metadata = metadata;
-        _magick = magick;
-        _dateResolver = new DateResolver(metadata);
-    }
-
-    public async Task<ProcessingResult> ProcessFileAsync(string filePath, string rootPath)
+    public async Task<ProcessingResult> ProcessFileAsync(string rootPath, string filePath)
     {
         var relativePath = Path.GetRelativePath(rootPath, filePath);
 
         try
         {
             // Detect actual file type via magic bytes (not just the extension)
-            var actualType = _metadata.DetectFileType(filePath);
+            var actualType = metadataService.DetectFileType(filePath);
 
             // Fix mislabeled extension if needed
             filePath = FixExtension(filePath, actualType, rootPath, ref relativePath);
 
             // Determine the best available date
-            var bestDate = _dateResolver.ResolveBestDate(filePath);
+            var bestDate = dateResolver.ResolveBestDate(filePath);
             if (!bestDate.HasValue)
             {
                 Console.WriteLine($"  [SKIP] {relativePath} - no valid dates found");
@@ -61,7 +50,35 @@ public class MediaFileProcessor
         }
     }
 
-    private string FixExtension(string filePath, string actualType, string rootPath, ref string relativePath)
+    private async Task<ProcessingResult> ConvertAndWriteDateAsync(
+        string filePath, DateTime bestDate, string rootPath, string relativePath)
+    {
+        var jpgPath = Path.ChangeExtension(filePath, ".jpg");
+        if (File.Exists(jpgPath) && !string.Equals(jpgPath, filePath, StringComparison.OrdinalIgnoreCase))
+            jpgPath = GetUniqueFilePath(jpgPath, "-converted");
+
+        var success = await magick.ConvertToJpgAsync(filePath, jpgPath);
+        if (!success)
+        {
+            Console.WriteLine($"  [ERR] {relativePath} - Magick.NET conversion failed, falling back to XMP");
+            await metadataService.WriteXmpDatesAsync(filePath, bestDate);
+            SetFilesystemDates(filePath, bestDate);
+            return new ProcessingResult(relativePath, bestDate, ProcessingStatus.Fixed);
+        }
+
+        // Write EXIF dates into the new JPG
+        await metadataService.WriteExifDatesAsync(jpgPath, bestDate);
+        SetFilesystemDates(jpgPath, bestDate);
+
+        // Delete original (conversion succeeded)
+        File.Delete(filePath);
+
+        var jpgRelative = Path.GetRelativePath(rootPath, jpgPath);
+        Console.WriteLine($"  [CONV] {relativePath} -> {jpgRelative} ({bestDate:yyyy-MM-dd HH:mm:ss})");
+        return new ProcessingResult(relativePath, bestDate, ProcessingStatus.Converted);
+    }
+
+    private static string FixExtension(string filePath, string actualType, string rootPath, ref string relativePath)
     {
         if (!Constants.TypeToExtension.TryGetValue(actualType, out var correctExt))
             return filePath;
@@ -84,52 +101,24 @@ public class MediaFileProcessor
         return newPath;
     }
 
-    private async Task<ProcessingResult> ConvertAndWriteDateAsync(
-        string filePath, DateTime bestDate, string rootPath, string relativePath)
-    {
-        var jpgPath = Path.ChangeExtension(filePath, ".jpg");
-        if (File.Exists(jpgPath) && !string.Equals(jpgPath, filePath, StringComparison.OrdinalIgnoreCase))
-            jpgPath = GetUniqueFilePath(jpgPath, "-converted");
-
-        var success = await _magick.ConvertToJpgAsync(filePath, jpgPath);
-        if (!success)
-        {
-            Console.WriteLine($"  [ERR] {relativePath} - Magick.NET conversion failed, falling back to XMP");
-            await _metadata.WriteXmpDatesAsync(filePath, bestDate);
-            SetFilesystemDates(filePath, bestDate);
-            return new ProcessingResult(relativePath, bestDate, ProcessingStatus.Fixed);
-        }
-
-        // Write EXIF dates into the new JPG
-        await _metadata.WriteExifDatesAsync(jpgPath, bestDate);
-        SetFilesystemDates(jpgPath, bestDate);
-
-        // Delete original (conversion succeeded)
-        File.Delete(filePath);
-
-        var jpgRelative = Path.GetRelativePath(rootPath, jpgPath);
-        Console.WriteLine($"  [CONV] {relativePath} -> {jpgRelative} ({bestDate:yyyy-MM-dd HH:mm:ss})");
-        return new ProcessingResult(relativePath, bestDate, ProcessingStatus.Converted);
-    }
-
     private async Task WriteDateForTypeAsync(string filePath, string actualType, DateTime date)
     {
         if (Constants.ExifWritableTypes.Contains(actualType))
         {
-            await _metadata.WriteExifDatesAsync(filePath, date);
+            await metadataService.WriteExifDatesAsync(filePath, date);
         }
         else if (Constants.VideoTypes.Contains(actualType))
         {
-            _metadata.WriteVideoDates(filePath, date);
+            metadataService.WriteVideoDates(filePath, date);
         }
         else if (actualType.Equals("PNG", StringComparison.OrdinalIgnoreCase))
         {
-            await _metadata.WritePngDatesAsync(filePath, date);
+            await metadataService.WritePngDatesAsync(filePath, date);
         }
         else
         {
             // Unknown type — XMP as best effort
-            await _metadata.WriteXmpDatesAsync(filePath, date);
+            await metadataService.WriteXmpDatesAsync(filePath, date);
         }
     }
 

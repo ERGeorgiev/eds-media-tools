@@ -6,7 +6,7 @@ namespace PersonalMediaArchiver;
 /// File type classifications, extension mappings, and filename date patterns
 /// ported from the PowerShell Fix-MediaDates script.
 /// </summary>
-public static class Constants
+public static partial class Constants
 {
     public static readonly HashSet<string> SupportedExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -48,8 +48,14 @@ public static class Constants
     public static readonly Regex[] FilenamePatterns =
     {
         // YYYY[sep]MM[sep]DD[sep]HH[sep]mm[sep]ss (with time)
-        new(@"(?:^|[\s_\-\.\(~])(?<y>20\d{2})[_\-\.]?(?<m>[01]\d)[_\-\.]?(?<d>[0-3]\d)[_\-\.]?(?<H>[0-2]\d)[_\-\.]?(?<Min>[0-5]\d)[_\-\.]?(?<Sec>[0-5]\d)(?:$|[\s_\-\.\(\)~])", RegexOptions.Compiled),
+        DateTimePattern(),
         // YYYY[sep]MM[sep]DD (date only)
-        new(@"(?:^|[\s_\-\.\(~])(?<y>20\d{2})[_\-\.]?(?<m>[01]\d)[_\-\.]?(?<d>[0-3]\d)(?:$|[\s_\-\.\(\)~])", RegexOptions.Compiled)
+        DateOnlyPattern()
     };
+
+    [GeneratedRegex(@"(?:^|[\s_\-\.\(~])(?<y>20\d{2})[_\-\.]?(?<m>[01]\d)[_\-\.]?(?<d>[0-3]\d)[_\-\.]?(?<H>[0-2]\d)[_\-\.]?(?<Min>[0-5]\d)[_\-\.]?(?<Sec>[0-5]\d)(?:$|[\s_\-\.\(\)~])", RegexOptions.Compiled)]
+    private static partial Regex DateTimePattern();
+
+    [GeneratedRegex(@"(?:^|[\s_\-\.\(~])(?<y>20\d{2})[_\-\.]?(?<m>[01]\d)[_\-\.]?(?<d>[0-3]\d)(?:$|[\s_\-\.\(\)~])", RegexOptions.Compiled)]
+    private static partial Regex DateOnlyPattern();
 }
