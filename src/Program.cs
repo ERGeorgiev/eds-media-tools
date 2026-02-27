@@ -45,9 +45,9 @@ var metadataService = new MetadataService();
 var dateResolver = new DateResolver(metadataService);
 var mediaFileProcessor = new MediaFileProcessor(magick, metadataService, dateResolver);
 
+// 1. Get all files
+
 // Process each folder
-List<string> allUnsupportedFiles = [];
-List<ProcessingResult> results = [];
 foreach (var inputPath in args)
 {
     Console.WriteLine("────────────────────────────────────────────────");
@@ -76,7 +76,6 @@ foreach (var inputPath in args)
     }
     var unsupportedFiles = files.Where(f => Constants.SupportedExtensions.Contains(Path.GetExtension(f)) == false).ToList();
     var supportedFiles = files.Except(unsupportedFiles).ToList();
-    allUnsupportedFiles.AddRange(unsupportedFiles.Select(p => Path.GetRelativePath(dirPath, p)));
     Console.WriteLine($"  Found {supportedFiles.Count} supported files");
     Console.WriteLine($"  Found {unsupportedFiles.Count} unsupported files");
     Console.WriteLine();
@@ -96,64 +95,64 @@ foreach (var inputPath in args)
         }
     });
 
-    results.AddRange(await Task.WhenAll(tasks));
+    var results = await Task.WhenAll(tasks);
     Console.WriteLine($"  Finished Processing: {inputPath}");
-}
 
-// Summary
-Console.WriteLine("────────────────────────────────────────────────");
-Console.WriteLine($"Summary");
-var fixedFiles = results.Where(r => r.Status == ProcessingStatus.Fixed).ToList();
-var convertedFiles = results.Where(r => r.Status == ProcessingStatus.Converted).ToList();
-var skippedFiles = results.Where(r => r.Status == ProcessingStatus.Skipped).ToList();
-var errorFiles = results.Where(r => r.Status == ProcessingStatus.Error).ToList();
+    // Summary
+    Console.WriteLine("────────────────────────────────────────────────");
+    Console.WriteLine($"Summary");
+    var fixedFiles = results.Where(r => r.Status == ProcessingStatus.Fixed).ToList();
+    var convertedFiles = results.Where(r => r.Status == ProcessingStatus.Converted).ToList();
+    var skippedFiles = results.Where(r => r.Status == ProcessingStatus.Skipped).ToList();
+    var errorFiles = results.Where(r => r.Status == ProcessingStatus.Error).ToList();
 
-if (fixedFiles.Count > 0)
-{
+    if (fixedFiles.Count > 0)
+    {
+        Console.WriteLine();
+        Console.WriteLine("  Date Fixes:");
+        foreach (var r in fixedFiles)
+            Console.WriteLine($"    {r.RelativePath,-60} {r.DateAssigned:yyyy-MM-dd HH:mm:ss}");
+    }
+
+    if (unsupportedFiles.Count > 0)
+    {
+        Console.WriteLine();
+        Console.WriteLine("  Unsupported:");
+        foreach (var r in unsupportedFiles)
+            Console.WriteLine($"    {Path.GetRelativePath(dirPath, r),-60}");
+    }
+
+    if (convertedFiles.Count > 0)
+    {
+        Console.WriteLine();
+        Console.WriteLine("  Converted to JPG:"); // todo: to converted any to any
+        foreach (var r in convertedFiles)
+            Console.WriteLine($"    {r.RelativePath,-60} {r.DateAssigned:yyyy-MM-dd HH:mm:ss}");
+    }
+
+    if (skippedFiles.Count > 0)
+    {
+        Console.WriteLine();
+        Console.WriteLine("  Skipped:");
+        foreach (var r in skippedFiles)
+            Console.WriteLine($"    {r.RelativePath,-60} {r.ErrorMessage}");
+    }
+
+    if (errorFiles.Count > 0)
+    {
+        Console.WriteLine();
+        Console.WriteLine("  Errors:");
+        foreach (var r in errorFiles)
+            Console.WriteLine($"    {r.RelativePath,-60} {r.ErrorMessage}");
+    }
+
     Console.WriteLine();
-    Console.WriteLine("  Date Fixes:");
-    foreach (var r in fixedFiles)
-        Console.WriteLine($"    {r.RelativePath,-60} {r.DateAssigned:yyyy-MM-dd HH:mm:ss}");
+    Console.WriteLine("  Results:");
+    Console.WriteLine($"    Processed:  {fixedFiles.Count}");
+    Console.WriteLine($"    Converted:  {convertedFiles.Count}");
+    Console.WriteLine($"    Skipped:    {skippedFiles.Count}");
+    Console.WriteLine($"    Errors:     {errorFiles.Count}");
 }
-
-if (allUnsupportedFiles.Count > 0)
-{
-    Console.WriteLine();
-    Console.WriteLine("  Unsupported:");
-    foreach (var r in allUnsupportedFiles)
-        Console.WriteLine($"    {r, -60}");
-}
-
-if (convertedFiles.Count > 0)
-{
-    Console.WriteLine();
-    Console.WriteLine("  Converted to JPG:"); // todo: to converted any to any
-    foreach (var r in convertedFiles)
-        Console.WriteLine($"    {r.RelativePath,-60} {r.DateAssigned:yyyy-MM-dd HH:mm:ss}");
-}
-
-if (skippedFiles.Count > 0)
-{
-    Console.WriteLine();
-    Console.WriteLine("  Skipped:");
-    foreach (var r in skippedFiles)
-        Console.WriteLine($"    {r.RelativePath,-60} {r.ErrorMessage}");
-}
-
-if (errorFiles.Count > 0)
-{
-    Console.WriteLine();
-    Console.WriteLine("  Errors:");
-    foreach (var r in errorFiles)
-        Console.WriteLine($"    {r.RelativePath,-60} {r.ErrorMessage}");
-}
-
-Console.WriteLine();
-Console.WriteLine("  Results:");
-Console.WriteLine($"    Processed:  {fixedFiles.Count}");
-Console.WriteLine($"    Converted:  {convertedFiles.Count}");
-Console.WriteLine($"    Skipped:    {skippedFiles.Count}");
-Console.WriteLine($"    Errors:     {errorFiles.Count}");
 
 Console.WriteLine();
 Console.WriteLine("================================================");
