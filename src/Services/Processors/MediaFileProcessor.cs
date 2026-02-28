@@ -23,45 +23,23 @@ public class MediaFileProcessor(
         try
         {
             var actualType = fileTypeService.GetFileType(request.NewPath.Absolute);
-            var wasRenamed = false;
 
-            // Step 1: Fix extension if requested
             if (request.FixExtension)
+                extensionFixProcessor.Process(request, actualType);
+
+            if (request.Compress)
             {
-                wasRenamed = extensionFixProcessor.Process(request, actualType);
-                if (wasRenamed)
-                    actualType = fileTypeService.GetFileType(request.NewPath.Absolute);
+                var result = await compressProcessor.ProcessAsync(request, actualType);
+                if (result != null) return result;
             }
 
-            // Step 2: Compress if requested and file is XMP-only
-            if (request.Compress && MediaType.XmpOnlyTypes.Contains(actualType))
-            {
-                if (!request.OriginDate.HasValue)
-                {
-                    Console.WriteLine($"  [SKIP] {request.NewPath.Relative} - no valid dates found for compression");
-                    return new ProcessingResult(request.NewPath.Relative, null, ProcessingStatus.Skipped, "No valid dates found");
-                }
-
-                return await compressProcessor.ProcessAsync(request);
-            }
-
-            // Step 3: Set dates if requested
             if (request.SetDates)
-            {
-                if (!request.OriginDate.HasValue)
-                {
-                    Console.WriteLine($"  [SKIP] {request.NewPath.Relative} - no valid dates found");
-                    return new ProcessingResult(request.NewPath.Relative, null, ProcessingStatus.Skipped, "No valid dates found");
-                }
-
                 return await dateProcessor.ProcessAsync(request, actualType);
-            }
 
-            // Step 4: If only extension was fixed
-            if (wasRenamed)
+            // Only extension was fixed — detect via path change
+            if (request.NewPath.Absolute != request.OriginalPath.Absolute)
                 return new ProcessingResult(request.NewPath.Relative, null, ProcessingStatus.Renamed);
 
-            // Nothing applicable
             Console.WriteLine($"  [SKIP] {request.NewPath.Relative} - no applicable processing");
             return new ProcessingResult(request.NewPath.Relative, null, ProcessingStatus.Skipped, "No applicable processing");
         }

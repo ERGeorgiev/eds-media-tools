@@ -26,7 +26,7 @@ public class ExtensionFixProcessor : IExtensionFixProcessor
             return false;
 
         var newPath = Path.ChangeExtension(request.NewPath.Absolute, correctExt);
-        newPath = GetUniqueFilePath(newPath, "-renamed");
+        newPath = GetUniqueFilePath(newPath);
 
         File.Move(request.NewPath.Absolute, newPath);
 
@@ -40,7 +40,7 @@ public class ExtensionFixProcessor : IExtensionFixProcessor
         return ext.Equals(".jpeg", StringComparison.OrdinalIgnoreCase) ? ".jpg" : ext.ToLowerInvariant();
     }
 
-    private static string GetUniqueFilePath(string path, string suffix)
+    private static string GetUniqueFilePath(string path)
     {
         if (!File.Exists(path)) return path;
 
@@ -52,7 +52,7 @@ public class ExtensionFixProcessor : IExtensionFixProcessor
         string candidate;
         do
         {
-            candidate = Path.Combine(dir, $"{baseName}{suffix}{counter}{ext}");
+            candidate = Path.Combine(dir, $"{baseName}{counter}{ext}");
             counter++;
         } while (File.Exists(candidate));
 

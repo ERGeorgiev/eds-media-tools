@@ -144,7 +144,10 @@ foreach (var inputPath in args)
         await semaphore.WaitAsync();
         try
         {
-            var request = fileRequestFactory.Create(dirPath, file, preferences);
+            var request = fileRequestFactory.Create(dirPath, file);
+            request.FixExtension = preferences.FixExtensions;
+            request.Compress = preferences.Compress;
+            request.SetDates = preferences.SetDates;
             return await mediaFileProcessor.ProcessFileAsync(request);
         }
         finally

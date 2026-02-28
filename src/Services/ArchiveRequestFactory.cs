@@ -6,12 +6,12 @@ namespace EdsMediaArchiver.Services;
 
 public interface IArchiveRequestFactory
 {
-    ArchiveRequest Create(string rootPath, string filePath, UserPreferences preferences);
+    ArchiveRequest Create(string rootPath, string filePath);
 }
 
 public class ArchiveRequestFactory(IFileDateResolver dateResolver, IFileTypeResolver fileTypeService) : IArchiveRequestFactory
 {
-    public ArchiveRequest Create(string rootPath, string filePath, UserPreferences preferences)
+    public ArchiveRequest Create(string rootPath, string filePath)
     {
         var fileInfo = new FileInfo(filePath);
         var fileType = fileTypeService.GetFileType(filePath);
@@ -19,10 +19,7 @@ public class ArchiveRequestFactory(IFileDateResolver dateResolver, IFileTypeReso
         var originDate = dateResolver.ResolveBestDate(fileInfo, metadataDirectories);
         return new ArchiveRequest(rootPath, fileInfo, fileType, metadataDirectories)
         {
-            OriginDate = originDate,
-            FixExtension = preferences.FixExtensions,
-            Compress = preferences.Compress,
-            SetDates = preferences.SetDates
+            OriginDate = originDate
         };
     }
 }

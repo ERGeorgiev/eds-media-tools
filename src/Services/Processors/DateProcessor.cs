@@ -6,6 +6,7 @@ public interface IDateProcessor
 {
     /// <summary>
     /// Writes date metadata and sets filesystem Created/Modified dates.
+    /// Skips if no valid date is available.
     /// </summary>
     Task<ProcessingResult> ProcessAsync(ArchiveRequest request, string actualType);
 }
@@ -14,8 +15,14 @@ public class DateProcessor(IMetadataWriter metadataWriter) : IDateProcessor
 {
     public async Task<ProcessingResult> ProcessAsync(ArchiveRequest request, string actualType)
     {
+        if (!request.OriginDate.HasValue)
+        {
+            Console.WriteLine($"  [SKIP] {request.NewPath.Relative} - no valid dates found");
+            return new ProcessingResult(request.NewPath.Relative, null, ProcessingStatus.Skipped, "No valid dates found");
+        }
+
         var filePath = request.NewPath.Absolute;
-        var date = request.OriginDate!.Value;
+        var date = request.OriginDate.Value;
 
         await WriteDateForTypeAsync(filePath, actualType, date);
         SetFilesystemDates(filePath, date);
