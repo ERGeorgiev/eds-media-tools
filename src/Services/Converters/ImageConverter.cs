@@ -1,12 +1,15 @@
 using EdsMediaArchiver.Helpers;
+using EdsMediaArchiver.Services.Compressors;
 using ImageMagick;
 
 namespace EdsMediaArchiver.Services.Converters;
 
+public interface IImageConverter : IMediaConverter { }
+
 /// <summary>
 /// Converts XMP-only image formats (WebP, BMP, TIFF) to JPG.
 /// </summary>
-public class ImageConverter : IMediaConverter
+public class ImageConverter : IImageConverter
 {
     public bool IsSupported(string actualType) => MediaType.CompressibleImageTypes.Contains(actualType); // ToDo: What if already jpg?
 

@@ -4,10 +4,12 @@ using FFMpegCore.Enums;
 
 namespace EdsMediaArchiver.Services.Converters;
 
+public interface IVideoConverter : IMediaConverter { }
+
 /// <summary>
 /// Converts non-MP4 video formats to MP4.
 /// </summary>
-public class VideoConverter : IMediaConverter
+public class VideoConverter : IVideoConverter
 {
     public bool IsSupported(string actualType) => MediaType.CompressibleImageTypes.Contains(actualType); // ToDo: What if already mp4?
 
