@@ -1,9 +1,10 @@
 using EdsMediaArchiver.Models;
 using EdsMediaArchiver.Services.Compressors;
+using EdsMediaArchiver.Services.Converters;
 
 namespace EdsMediaArchiver.Services.Processors;
 
-public interface ICompressProcessor
+public interface IConvertProcessor
 {
     /// <summary>
     /// Fixes the file extension and/or compresses the file based on request flags.
@@ -12,16 +13,20 @@ public interface ICompressProcessor
     Task<ProcessingResult?> ProcessAsync(ArchiveRequest request);
 }
 
-public class CompressProcessor(IEnumerable<IMediaCompressor> compressors) : ICompressProcessor
+public class ConvertProcessor(IEnumerable<IMediaConverter> converters) : IConvertProcessor
 {
     public async Task<ProcessingResult?> ProcessAsync(ArchiveRequest request)
     {
         try
         {
-            var compressor = compressors.FirstOrDefault(c => c.IsSupported(request.ActualFileType));
-            if (compressor != null)
+            var actualType = request.ActualFileType;
+            if (request.Compress)
             {
-                return await CompressFileAsync(request, compressor);
+                var converter = converters.FirstOrDefault(c => c.IsSupported(actualType));
+                if (converter != null)
+                {
+                    return await ConvertFileAsync(request, converter);
+                }
             }
         }
         catch (Exception e)
@@ -32,14 +37,14 @@ public class CompressProcessor(IEnumerable<IMediaCompressor> compressors) : ICom
         return null;
     }
 
-    private static async Task<ProcessingResult> CompressFileAsync(ArchiveRequest request, IMediaCompressor compressor)
+    private static async Task<ProcessingResult> ConvertFileAsync(ArchiveRequest request, IMediaConverter converter)
     {
         var filePath = request.NewPath.Absolute;
         var rootPath = request.NewPath.Root;
         var relativePath = request.NewPath.Relative;
         var outputDir = Path.GetDirectoryName(filePath)!;
 
-        var outputPath = await compressor.CompressAsync(filePath, outputDir);
+        var outputPath = await converter.ConvertAsync(filePath, outputDir, request.ActualFileType);
         if (outputPath == null)
         {
             Console.WriteLine($"  [ERR] {relativePath} - compression failed");
