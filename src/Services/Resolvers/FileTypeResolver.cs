@@ -1,13 +1,13 @@
 using MetadataExtractor.Util;
 
-namespace EdsMediaArchiver.Services;
+namespace EdsMediaArchiver.Services.Resolvers;
 
-public interface IFileTypeService
+public interface IFileTypeResolver
 {
     string GetFileType(string filePath);
 }
 
-public class FileTypeService : IFileTypeService
+public class FileTypeResolver : IFileTypeResolver
 {
     /// <summary>
     /// Detects the actual file type using magic bytes via MetadataExtractor,

@@ -1,20 +1,21 @@
 using EdsMediaArchiver.Models;
 using EdsMediaArchiver.Services.Converters;
+using EdsMediaArchiver.Services.Resolvers;
 
 namespace EdsMediaArchiver.Services.Processors;
 
 public interface IMediaFileProcessor
 {
-    Task<ProcessingResult> ProcessFileAsync(FileProcessingRequest request);
+    Task<ProcessingResult> ProcessFileAsync(ArchiveRequest request);
 }
 
 /// <summary>
 /// Processes a single media file: detects type, fixes extension, resolves best date,
 /// converts XMP-only formats if needed, and writes metadata + filesystem dates.
 /// </summary>
-public class MediaFileProcessor(IImageConverter imageConverter, IFileTypeService fileTypeService, IMetadataWriter metadataWriter) : IMediaFileProcessor
+public class MediaFileProcessor(IImageConverter imageConverter, IFileTypeResolver fileTypeService, IMetadataWriter metadataWriter) : IMediaFileProcessor
 {
-    public async Task<ProcessingResult> ProcessFileAsync(FileProcessingRequest request)
+    public async Task<ProcessingResult> ProcessFileAsync(ArchiveRequest request)
     {
         try
         {

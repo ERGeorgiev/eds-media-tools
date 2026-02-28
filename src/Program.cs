@@ -4,6 +4,7 @@ using EdsMediaArchiver.Services;
 using EdsMediaArchiver.Services.Converters;
 using EdsMediaArchiver.Services.FileDateReaders;
 using EdsMediaArchiver.Services.Processors;
+using EdsMediaArchiver.Services.Resolvers;
 using EdsMediaArchiver.Services.Validators;
 using Microsoft.Extensions.DependencyInjection;
 using System.Diagnostics;
@@ -55,16 +56,16 @@ var serviceProvider = new ServiceCollection()
     .AddSingleton<IOriginalDateReader, OriginalDateReader>()
     .AddSingleton<IFilenameDateReader, FilenameDateReader>()
     .AddSingleton<IOldestDateReader, OldestDateReader>()
-    .AddSingleton<IDateResolver, DateResolver>()
-    .AddSingleton<IFileTypeService, FileTypeService>()
+    .AddSingleton<IFileDateResolver, FileDateResolver>()
+    .AddSingleton<IFileTypeResolver, FileTypeResolver>()
     .AddSingleton<IImageConverter, ImageConverter>()
     .AddSingleton<IMediaFileProcessor, MediaFileProcessor>()
-    .AddSingleton<IFileProcessingRequestFactory, FileProcessingRequestFactory>()
+    .AddSingleton<IArchiveRequestFactory, ArchiveRequestFactory>()
     .BuildServiceProvider();
 
 // Services
 var mediaFileProcessor = serviceProvider.GetRequiredService<IMediaFileProcessor>();
-var fileRequestFactory = serviceProvider.GetRequiredService<IFileProcessingRequestFactory>();
+var fileRequestFactory = serviceProvider.GetRequiredService<IArchiveRequestFactory>();
 
 // 1. Get all files
 // 2. Rename mistyped files
