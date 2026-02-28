@@ -4,6 +4,7 @@ using EdsMediaArchiver.Services;
 using EdsMediaArchiver.Services.Compressors;
 using EdsMediaArchiver.Services.Converters;
 using EdsMediaArchiver.Services.FileDateReaders;
+using EdsMediaArchiver.Services.Logging;
 using EdsMediaArchiver.Services.Processors;
 using EdsMediaArchiver.Services.Resolvers;
 using EdsMediaArchiver.Services.Validators;
@@ -118,6 +119,7 @@ var serviceProvider = new ServiceCollection()
 // Services
 var mediaFileProcessor = serviceProvider.GetRequiredService<IArchiveProcessor>();
 var fileRequestFactory = serviceProvider.GetRequiredService<IArchiveRequestFactory>();
+var logs = serviceProvider.GetRequiredService<IProcessLogger>();
 
 // Process each folder
 foreach (var inputPath in args)
@@ -149,7 +151,6 @@ foreach (var inputPath in args)
     var unsupportedFiles = files.Where(f => Constants.SupportedExtensions.Contains(Path.GetExtension(f)) == false).ToList(); // ToDo: Decide with actual type
     var supportedFiles = files.Except(unsupportedFiles).ToList();
     Console.WriteLine($"  Found {supportedFiles.Count} supported files");
-    Console.WriteLine($"  Found {unsupportedFiles.Count} unsupported files");
     Console.WriteLine();
 
     // Process files with limited parallelism
@@ -163,7 +164,7 @@ foreach (var inputPath in args)
             request.Compress = preferenceCompress;
             request.SetDates = preferenceSetDates;
             request.ConvertIfUnreliableForDates = preferenceConvertToSetDate;
-            return await mediaFileProcessor.ProcessFileAsync(request);
+            await mediaFileProcessor.ProcessFileAsync(request);
         }
         finally
         {
@@ -171,73 +172,9 @@ foreach (var inputPath in args)
         }
     });
 
-    var results = await Task.WhenAll(tasks);
+    await Task.WhenAll(tasks);
     Console.WriteLine($"  Finished Processing: {inputPath}");
-
-    // Summary
-    Console.WriteLine("────────────────────────────────────────────────");
-    Console.WriteLine($"Summary");
-    var fixedFiles = results.Where(r => r.Status == ProcessingStatus.Fixed).ToList();
-    var convertedFiles = results.Where(r => r.Status == ProcessingStatus.Converted).ToList();
-    var renamedFiles = results.Where(r => r.Status == ProcessingStatus.Renamed).ToList();
-    var skippedFiles = results.Where(r => r.Status == ProcessingStatus.Skipped).ToList();
-    var errorFiles = results.Where(r => r.Status == ProcessingStatus.Error).ToList();
-
-    if (fixedFiles.Count > 0)
-    {
-        Console.WriteLine();
-        Console.WriteLine("  Date Fixes:");
-        foreach (var r in fixedFiles)
-            Console.WriteLine($"    {r.RelativePath,-60} {r.DateAssigned:yyyy-MM-dd HH:mm:ss}");
-    }
-
-    if (unsupportedFiles.Count > 0)
-    {
-        Console.WriteLine();
-        Console.WriteLine("  Unsupported:");
-        foreach (var r in unsupportedFiles)
-            Console.WriteLine($"    {Path.GetRelativePath(dirPath, r),-60}");
-    }
-
-    if (convertedFiles.Count > 0)
-    {
-        Console.WriteLine();
-        Console.WriteLine("  Converted:");
-        foreach (var r in convertedFiles)
-            Console.WriteLine($"    {r.RelativePath,-60} {r.DateAssigned:yyyy-MM-dd HH:mm:ss}");
-    }
-
-    if (renamedFiles.Count > 0)
-    {
-        Console.WriteLine();
-        Console.WriteLine("  Renamed (extension fixed):");
-        foreach (var r in renamedFiles)
-            Console.WriteLine($"    {r.RelativePath,-60}");
-    }
-
-    if (skippedFiles.Count > 0)
-    {
-        Console.WriteLine();
-        Console.WriteLine("  Skipped:");
-        foreach (var r in skippedFiles)
-            Console.WriteLine($"    {r.RelativePath,-60} {r.ErrorMessage}");
-    }
-
-    if (errorFiles.Count > 0)
-    {
-        Console.WriteLine();
-        Console.WriteLine("  Errors:");
-        foreach (var r in errorFiles)
-            Console.WriteLine($"    {r.RelativePath,-60} {r.ErrorMessage}");
-    }
-
-    Console.WriteLine();
-    Console.WriteLine("  Results:");
-    Console.WriteLine($"    Processed:  {fixedFiles.Count}");
-    Console.WriteLine($"    Converted:  {convertedFiles.Count}");
-    Console.WriteLine($"    Renamed:    {renamedFiles.Count}");
-    Console.WriteLine($"    Skipped:    {skippedFiles.Count}");
-    Console.WriteLine($"    Errors:     {errorFiles.Count}");
+    logs.PrintSummary();
 }
 
 Console.WriteLine();

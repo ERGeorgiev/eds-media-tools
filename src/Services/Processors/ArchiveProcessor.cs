@@ -1,10 +1,11 @@
 using EdsMediaArchiver.Models;
+using EdsMediaArchiver.Services.Logging;
 
 namespace EdsMediaArchiver.Services.Processors;
 
 public interface IArchiveProcessor
 {
-    Task<ProcessingResult> ProcessFileAsync(ArchiveRequest request);
+    Task ProcessFileAsync(ArchiveRequest request);
 }
 
 /// <summary>
@@ -13,41 +14,43 @@ public interface IArchiveProcessor
 /// </summary>
 public class ArchiveProcessor(
     ICompressProcessor compressProcessor,
-    IDateProcessor dateProcessor) : IArchiveProcessor
+    IConvertProcessor convertProcessor,
+    IDateProcessor dateProcessor,
+    IProcessLogger processLogger) : IArchiveProcessor
 {
-    public async Task<ProcessingResult> ProcessFileAsync(ArchiveRequest request)
+    public async Task ProcessFileAsync(ArchiveRequest request)
     {
         try
         {
-            ProcessingResult? compressResult = null;
-
-            // 1. Compress
-            if (request.Compress)
-                compressResult = await compressProcessor.ProcessAsync(request);
-
-            // 2. Date
-            if (request.SetDates)
+            if (Constants.FileTypeToExtension.TryGetValue(request.ActualFileType, out var actualExtension))
             {
-                var dateResult = await dateProcessor.ProcessAsync(request);
-
-                // If compressed and dates set, prefer Converted status but include the date
-                if (compressResult?.Status == ProcessingStatus.Converted)
-                    return new ProcessingResult(compressResult.RelativePath, dateResult.DateAssigned, ProcessingStatus.Converted);
-
-                return dateResult;
+                if (Constants.SupportedExtensions.Contains(actualExtension) == false)
+                {
+                    processLogger.Log(IProcessLogger.Operation.Archive, IProcessLogger.Result.Skip, request.OriginalPath.Absolute, $"Unsupported FileType '{request.ActualFileType}'");
+                    return;
+                }
             }
 
-            // Return compress/rename result if no date processing
-            if (compressResult != null)
-                return compressResult;
+            if (request.Compress)
+            {
+                var compressedFilePath = await compressProcessor.ProcessAsync(request.NewPath.Absolute, request.NewPath.Directory, request.ActualFileType);
+                request.NewPath = new(request.NewPath.Root, compressedFilePath);
+            }
+            
+            if (request.ConvertIfUnreliableForDates && IDateProcessor.IsReliableFileTypeForDate(request.ActualFileType))
+            {
+                var convertedFilePath = await convertProcessor.ProcessAsync(request.NewPath.Absolute, request.NewPath.Directory, request.ActualFileType);
+                request.NewPath = new(request.NewPath.Root, convertedFilePath);
+            }
 
-            Console.WriteLine($"  [SKIP] {request.NewPath.Relative} - no applicable processing");
-            return new ProcessingResult(request.NewPath.Relative, null, ProcessingStatus.Skipped, "No applicable processing");
+            if (request.SetDates)
+            {
+                var dateResult = await dateProcessor.ProcessAsync(request.FileInfo, request.NewPath.Directory, request.ActualFileType);
+            }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"  [ERR] {request.NewPath.Relative} - {ex.Message}");
-            return new ProcessingResult(request.NewPath.Relative, null, ProcessingStatus.Error, ex.Message);
+            processLogger.Log(IProcessLogger.Operation.Archive, IProcessLogger.Result.Error, request.OriginalPath.Absolute, ex.Message);
         }
     }
 }

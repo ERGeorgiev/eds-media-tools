@@ -26,7 +26,6 @@ public class VideoConverter : IVideoConverter
                 .WithConstantRateFactor(17)
                 .WithSpeedPreset(Speed.Slow)
                 // High-Fidelity Audio
-                // 128kbps is "Radio" quality. Use 256 or 320 for "Pro" audio.
                 .WithAudioCodec("aac")
                 .WithAudioBitrate(192)
 

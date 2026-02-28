@@ -1,37 +1,44 @@
-using EdsMediaArchiver.Models;
+using EdsMediaArchiver.Services.Logging;
 using EdsMediaArchiver.Services.Resolvers;
+using MetadataExtractor;
 
 namespace EdsMediaArchiver.Services.Processors;
 
 public interface IDateProcessor
 {
+    public static bool IsReliableFileTypeForDate(string fileType) => MediaType.ExifWritableTypes.Contains(fileType);
+
     /// <summary>
     /// Writes date metadata and sets filesystem Created/Modified dates.
     /// Determines the current file type from the file path (handles post-compression type changes).
     /// Skips if no valid date is available.
     /// </summary>
-    Task<ProcessingResult> ProcessAsync(ArchiveRequest request);
+    Task<DateTimeOffset?> ProcessAsync(FileInfo fileInfo, string outputDirectory, string actualType);
 }
 
-public class DateProcessor(IMetadataWriter metadataWriter, IFileTypeResolver fileTypeResolver) : IDateProcessor
+public class DateProcessor(
+    IMetadataWriter metadataWriter, 
+    IFileTypeResolver fileTypeResolver, 
+    IFileDateResolver fileDateResolver,
+    IProcessLogger processLogger) : IDateProcessor
 {
-    public async Task<ProcessingResult> ProcessAsync(ArchiveRequest request)
+    public async Task<DateTimeOffset?> ProcessAsync(FileInfo fileInfo, string outputDirectory, string actualType)
     {
-        if (!request.OriginDate.HasValue)
+        var metadataDirectories = ImageMetadataReader.ReadMetadata(fileInfo.FullName);
+        var originDate = fileDateResolver.ResolveBestDate(fileInfo, metadataDirectories);
+        if (originDate.HasValue == false)
         {
-            Console.WriteLine($"  [SKIP] {request.NewPath.Relative} - no valid dates found");
-            return new ProcessingResult(request.NewPath.Relative, null, ProcessingStatus.Skipped, "No valid dates found");
+            processLogger.Log(IProcessLogger.Operation.Date, IProcessLogger.Result.Skip, fileInfo.FullName, "No valid dates found.");
+            return null;
         }
 
-        var filePath = request.NewPath.Absolute;
-        var date = request.OriginDate.Value;
-        var currentType = fileTypeResolver.GetActualFileType(filePath);
+        var currentType = fileTypeResolver.GetActualFileType(fileInfo.FullName);
 
-        await WriteDateForTypeAsync(filePath, currentType, date);
-        SetFilesystemDates(filePath, date);
+        await WriteDateForTypeAsync(fileInfo.FullName, currentType, originDate.Value);
+        SetFilesystemDates(fileInfo.FullName, originDate.Value);
 
-        Console.WriteLine($"  [OK] {request.NewPath.Relative} -> {date:yyyy-MM-dd HH:mm:ss}");
-        return new ProcessingResult(request.NewPath.Relative, date, ProcessingStatus.Fixed);
+        processLogger.Log(IProcessLogger.Operation.Date, IProcessLogger.Result.Success, fileInfo.FullName, $"Date Set: {originDate:yyyy-MM-dd HH:mm:ss}");
+        return originDate;
     }
 
     private async Task WriteDateForTypeAsync(string filePath, string actualType, DateTimeOffset date)
