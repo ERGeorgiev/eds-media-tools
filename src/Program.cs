@@ -34,27 +34,21 @@ if (args.Length == 0)
 Console.WriteLine("  What would you like to do?");
 Console.WriteLine();
 
-Console.WriteLine("  Fix file extensions?");
-Console.WriteLine("    Detects actual file types and renames mislabeled extensions.");
-Console.Write("    (Y/n): ");
-var fixExtensions = AskYesNo();
-Console.WriteLine();
-
 Console.WriteLine("  Compress files?");
 Console.WriteLine("    Converts media to optimal formats:");
 Console.WriteLine("      Images (WebP, BMP, TIFF, GIF) -> JPG (multi-frame GIF -> MP4)");
 Console.WriteLine("      Video  (AVI, MKV, WMV, MOV, 3GP) -> MP4 (H.264 + AAC)");
 Console.WriteLine("      Audio  (MP3, WAV, FLAC, AAC, WMA, M4A) -> OGG (Vorbis)");
 Console.Write("    (Y/n): ");
-var compress = AskYesNo();
+var preferenceCcompress = AskYesNo();
 Console.WriteLine();
 
 Console.WriteLine("  Set file dates?");
 Console.WriteLine("    Writes date metadata and sets filesystem Created/Modified dates.");
 Console.Write("    (Y/n): ");
-var setDates = AskYesNo();
+var preferenceSetDates = AskYesNo();
 
-if (!fixExtensions && !compress && !setDates)
+if (!preferenceCcompress && !preferenceSetDates)
 {
     Console.WriteLine();
     Console.WriteLine("  No options selected. Nothing to do.");
@@ -63,18 +57,15 @@ if (!fixExtensions && !compress && !setDates)
     return 0;
 }
 
-var preferences = new UserPreferences(fixExtensions, compress, setDates);
-
 Console.WriteLine();
 Console.WriteLine("  Selected options:");
-if (fixExtensions) Console.WriteLine("    - Fix file extensions");
-if (compress)      Console.WriteLine("    - Compress files");
-if (setDates)      Console.WriteLine("    - Set file dates");
+if (preferenceCcompress)      Console.WriteLine("    - Compress files");
+if (preferenceSetDates)      Console.WriteLine("    - Set file dates");
 
 // ToDo: Verify backup folder created
 
 Console.WriteLine();
-Console.Write("  Proceed? (Y/n): ");
+Console.Write("  Ensure you have created a backup. Proceed? (Y/n): ");
 if (!AskYesNo())
 {
     Console.WriteLine("  Cancelled.");
@@ -147,9 +138,8 @@ foreach (var inputPath in args)
         try
         {
             var request = fileRequestFactory.Create(dirPath, file);
-            request.FixExtension = preferences.FixExtensions;
-            request.Compress = preferences.Compress;
-            request.SetDates = preferences.SetDates;
+            request.Compress = preferenceCcompress;
+            request.SetDates = preferenceSetDates;
             return await mediaFileProcessor.ProcessFileAsync(request);
         }
         finally
