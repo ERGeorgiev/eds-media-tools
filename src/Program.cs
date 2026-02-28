@@ -1,8 +1,11 @@
 using EdsMediaArchiver;
 using EdsMediaArchiver.Models;
 using EdsMediaArchiver.Services;
+using MetadataExtractor.Util;
+using Microsoft.Extensions.DependencyInjection;
 using System.Diagnostics;
 using System.Reflection;
+using System.Reflection.Metadata;
 
 Console.WriteLine();
 Console.WriteLine("================================================");
@@ -28,6 +31,7 @@ Console.WriteLine("  This tool will:");
 Console.WriteLine("    - Detect actual file types and fix wrong extensions");
 Console.WriteLine("    - Convert media that doesn't support EXIF date metadata (WebP, BMP, GIF, TIFF, MTS, WAV) to JPG/MP4");
 Console.WriteLine("    - Write date metadata and set filesystem dates");
+Console.WriteLine("    - DELETE input files as it's creating new ones");
 
 Console.WriteLine();
 Console.Write("  Proceed? (Y/n) ");
@@ -40,13 +44,23 @@ if (confirm?.TrimStart().StartsWith("Y", StringComparison.OrdinalIgnoreCase) == 
     return 0;
 }
 
+// 1. Setup the container
+var serviceProvider = new ServiceCollection()
+    .AddSingleton<IDateValidator, DateValidator>()
+    .AddSingleton<IMetadataWriter, MetadataWriter>()
+    .BuildServiceProvider();
+
 // Services
 var magick = new ImageMagickService();
-var metadataService = new MetadataService();
+var metadataService = new MetadataWriter();
 var dateResolver = new DateResolver(metadataService);
 var mediaFileProcessor = new MediaFileProcessor(magick, metadataService, dateResolver);
 
 // 1. Get all files
+// 2. Rename mistyped files
+// 3. Convert unsupported
+// 4. Compress
+// 5. Date
 
 // Process each folder
 foreach (var inputPath in args)

@@ -6,7 +6,7 @@ namespace EdsMediaArchiver.Services;
 /// Processes a single media file: detects type, fixes extension, resolves best date,
 /// converts XMP-only formats if needed, and writes metadata + filesystem dates.
 /// </summary>
-public class MediaFileProcessor(ImageMagickService magick, MetadataService metadataService, DateResolver dateResolver)
+public class MediaFileProcessor(ImageMagickService magick, IFileTypeService fileTypeService, IMetadataWriter metadataWriter, DateResolver dateResolver)
 {
     public async Task<ProcessingResult> ProcessFileAsync(string rootPath, string filePath)
     {
@@ -15,7 +15,7 @@ public class MediaFileProcessor(ImageMagickService magick, MetadataService metad
         try
         {
             // Detect actual file type via magic bytes (not just the extension)
-            var actualType = metadataService.DetectFileType(filePath);
+            var actualType = fileTypeService.Get(filePath);
 
             // Fix mislabeled extension if needed
             filePath = FixExtension(filePath, actualType, rootPath, ref relativePath);
@@ -61,13 +61,13 @@ public class MediaFileProcessor(ImageMagickService magick, MetadataService metad
         if (!success)
         {
             Console.WriteLine($"  [ERR] {relativePath} - Magick.NET conversion failed, falling back to XMP");
-            await metadataService.WriteXmpDatesAsync(filePath, bestDate);
+            await metadataWriter.WriteXmpDatesAsync(filePath, bestDate);
             SetFilesystemDates(filePath, bestDate);
             return new ProcessingResult(relativePath, bestDate, ProcessingStatus.Fixed);
         }
 
         // Write EXIF dates into the new JPG
-        await metadataService.WriteExifDatesAsync(jpgPath, bestDate);
+        await metadataWriter.WriteExifDatesAsync(jpgPath, bestDate);
         SetFilesystemDates(jpgPath, bestDate);
 
         // Delete original (conversion succeeded)
@@ -105,20 +105,20 @@ public class MediaFileProcessor(ImageMagickService magick, MetadataService metad
     {
         if (MediaType.ExifWritableTypes.Contains(actualType))
         {
-            await metadataService.WriteExifDatesAsync(filePath, date);
+            await metadataWriter.WriteExifDatesAsync(filePath, date);
         }
         else if (MediaType.VideoTypes.Contains(actualType))
         {
-            metadataService.WriteVideoDates(filePath, date);
+            metadataWriter.WriteVideoDates(filePath, date);
         }
         else if (actualType.Equals("PNG", StringComparison.OrdinalIgnoreCase))
         {
-            await metadataService.WritePngDatesAsync(filePath, date);
+            await metadataWriter.WritePngDatesAsync(filePath, date);
         }
         else
         {
             // Unknown type — XMP as best effort
-            await metadataService.WriteXmpDatesAsync(filePath, date);
+            await metadataWriter.WriteXmpDatesAsync(filePath, date);
         }
     }
 
