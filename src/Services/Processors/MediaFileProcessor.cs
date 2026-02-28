@@ -1,52 +1,53 @@
 using EdsMediaArchiver.Models;
+using EdsMediaArchiver.Services.Converters;
 
-namespace EdsMediaArchiver.Services;
+namespace EdsMediaArchiver.Services.Processors;
+
+public interface IMediaFileProcessor
+{
+    Task<ProcessingResult> ProcessFileAsync(FileProcessingRequest request);
+}
 
 /// <summary>
 /// Processes a single media file: detects type, fixes extension, resolves best date,
 /// converts XMP-only formats if needed, and writes metadata + filesystem dates.
 /// </summary>
-public class MediaFileProcessor(ImageMagickService magick, IFileTypeService fileTypeService, IMetadataWriter metadataWriter, DateResolver dateResolver)
+public class MediaFileProcessor(IImageConverter imageConverter, IFileTypeService fileTypeService, IMetadataWriter metadataWriter) : IMediaFileProcessor
 {
-    public async Task<ProcessingResult> ProcessFileAsync(string rootPath, string filePath)
+    public async Task<ProcessingResult> ProcessFileAsync(FileProcessingRequest request)
     {
-        var relativePath = Path.GetRelativePath(rootPath, filePath);
-
         try
         {
             // Detect actual file type via magic bytes (not just the extension)
-            var actualType = fileTypeService.Get(filePath);
+            var actualType = fileTypeService.GetFileType(request.OriginalPath.Absolute);
 
             // Fix mislabeled extension if needed
-            filePath = FixExtension(filePath, actualType, rootPath, ref relativePath);
+            //var filePath = FixExtension(request.OriginalPath.Absolute, actualType, request.OriginalPath.Root, ref relativePath);
 
             // Determine the best available date
-            var bestDate = dateResolver.ResolveBestDate(filePath);
-            if (!bestDate.HasValue)
+            if (request.OriginDate.HasValue == false)
             {
-                Console.WriteLine($"  [SKIP] {relativePath} - no valid dates found");
-                return new ProcessingResult(relativePath, null, ProcessingStatus.Skipped, "No valid dates found");
+                Console.WriteLine($"  [SKIP] {request.NewPath.Relative} - no valid dates found");
+                return new ProcessingResult(request.NewPath.Relative, null, ProcessingStatus.Skipped, "No valid dates found");
             }
 
             // XMP-only formats: convert to JPG via Magick.NET
             if (MediaType.XmpOnlyTypes.Contains(actualType))
-            {
-                return await ConvertAndWriteDateAsync(filePath, bestDate.Value, rootPath, relativePath);
-            }
+                return await ConvertAndWriteDateAsync(request.NewPath.Absolute, request.OriginDate.Value, request.NewPath.Root, request.NewPath.Relative);
 
             // Write date metadata based on file type
-            await WriteDateForTypeAsync(filePath, actualType, bestDate.Value);
+            await WriteDateForTypeAsync(request.NewPath.Absolute, actualType, request.OriginDate.Value);
 
             // Set filesystem Created/Modified dates
-            SetFilesystemDates(filePath, bestDate.Value);
+            SetFilesystemDates(request.NewPath.Absolute, request.OriginDate.Value);
 
-            Console.WriteLine($"  [OK] {relativePath} -> {bestDate.Value:yyyy-MM-dd HH:mm:ss}");
-            return new ProcessingResult(relativePath, bestDate.Value, ProcessingStatus.Fixed);
+            Console.WriteLine($"  [OK] {request.NewPath.Relative} -> {request.OriginDate:yyyy-MM-dd HH:mm:ss}");
+            return new ProcessingResult(request.NewPath.Relative, request.OriginDate, ProcessingStatus.Fixed);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"  [ERR] {relativePath} - {ex.Message}");
-            return new ProcessingResult(relativePath, null, ProcessingStatus.Error, ex.Message);
+            Console.WriteLine($"  [ERR] {request.NewPath.Relative} - {ex.Message}");
+            return new ProcessingResult(request.NewPath.Relative, null, ProcessingStatus.Error, ex.Message);
         }
     }
 
@@ -57,7 +58,7 @@ public class MediaFileProcessor(ImageMagickService magick, IFileTypeService file
         if (File.Exists(jpgPath) && !string.Equals(jpgPath, filePath, StringComparison.OrdinalIgnoreCase))
             jpgPath = GetUniqueFilePath(jpgPath, "-converted");
 
-        var success = await magick.ConvertToJpgAsync(filePath, jpgPath);
+        var success = await imageConverter.ConvertToJpgAsync(filePath, jpgPath);
         if (!success)
         {
             Console.WriteLine($"  [ERR] {relativePath} - Magick.NET conversion failed, falling back to XMP");
@@ -104,22 +105,14 @@ public class MediaFileProcessor(ImageMagickService magick, IFileTypeService file
     private async Task WriteDateForTypeAsync(string filePath, string actualType, DateTimeOffset date)
     {
         if (MediaType.ExifWritableTypes.Contains(actualType))
-        {
             await metadataWriter.WriteExifDatesAsync(filePath, date);
-        }
         else if (MediaType.VideoTypes.Contains(actualType))
-        {
             metadataWriter.WriteVideoDates(filePath, date);
-        }
         else if (actualType.Equals("PNG", StringComparison.OrdinalIgnoreCase))
-        {
             await metadataWriter.WritePngDatesAsync(filePath, date);
-        }
         else
-        {
             // Unknown type — XMP as best effort
             await metadataWriter.WriteXmpDatesAsync(filePath, date);
-        }
     }
 
     private static void SetFilesystemDates(string filePath, DateTimeOffset date)

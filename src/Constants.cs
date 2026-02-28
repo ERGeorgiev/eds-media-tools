@@ -1,6 +1,3 @@
-using System.Text.RegularExpressions;
-using TagLib;
-
 namespace EdsMediaArchiver;
 
 /// <summary>

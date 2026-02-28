@@ -1,3 +1,4 @@
+using EdsMediaArchiver.Services.Validators;
 using MetadataExtractor;
 using MetadataExtractor.Formats.Exif;
 using MetadataExtractor.Formats.Xmp;
@@ -5,7 +6,9 @@ using System.Globalization;
 
 namespace EdsMediaArchiver.Services.FileDateReaders;
 
-public class OriginalDateReader(IDateValidator dateValidator) : IFileDateReader, IOriginalDateReader
+public interface IOriginalDateReader : IFileDateReader { }
+
+public class OriginalDateReader(IDateValidator dateValidator) : IOriginalDateReader
 {
     public DateTimeOffset? Read(FileInfo fileInfo, IEnumerable<MetadataExtractor.Directory> fileDirectories)
     {

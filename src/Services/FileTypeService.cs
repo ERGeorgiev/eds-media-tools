@@ -2,6 +2,11 @@ using MetadataExtractor.Util;
 
 namespace EdsMediaArchiver.Services;
 
+public interface IFileTypeService
+{
+    string GetFileType(string filePath);
+}
+
 public class FileTypeService : IFileTypeService
 {
     /// <summary>
@@ -9,7 +14,7 @@ public class FileTypeService : IFileTypeService
     /// returning an uppercase type string matching the convention used by <see cref="MediaType"/>.
     /// Falls back to extension-based inference for types MetadataExtractor cannot detect.
     /// </summary>
-    public string Get(string filePath)
+    public string GetFileType(string filePath)
     {
         try
         {

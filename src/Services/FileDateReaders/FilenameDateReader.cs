@@ -1,8 +1,11 @@
+using EdsMediaArchiver.Services.Validators;
 using System.Text.RegularExpressions;
 
 namespace EdsMediaArchiver.Services.FileDateReaders;
 
-public partial class FilenameDateReader(IDateValidator dateValidator) : IFileDateReader, IFilenameDateReader
+public interface IFilenameDateReader : IFileDateReader { }
+
+public partial class FilenameDateReader(IDateValidator dateValidator) : IFilenameDateReader
 {
     public DateTimeOffset? Read(FileInfo fileInfo, IEnumerable<MetadataExtractor.Directory> fileDirectories)
     {

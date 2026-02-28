@@ -1,24 +1,15 @@
-using EdsMediaArchiver.Services;
-using MetadataExtractor;
-
 namespace EdsMediaArchiver.Models;
 
-public class FileProcessingRequest(FileInfo fileInfo)
+public class FileProcessingRequest(string rootPath, FileInfo fileInfo, string fileType, IReadOnlyList<MetadataExtractor.Directory> directories)
 {
-    public static FileProcessingRequest Create(DateResolver dateResolver, FileInfo fileInfo)
-    {
-        var originDate = dateResolver.ResolveBestDate(fileInfo.FullName);
-        var req = new FileProcessingRequest(fileInfo)
-        {
-            OriginDate = originDate
-        };
-        return req;
-    }
+    public PathInfo OriginalPath { get; } = new(rootPath, fileInfo.FullName);
+    public PathInfo NewPath { get; set; } = new(rootPath, fileInfo.FullName);
+    public FileInfo FileInfo { get; } = fileInfo;
+    public string FileType { get; } = fileType;
+    public IReadOnlyList<MetadataExtractor.Directory> MetadataDirectories { get; } = directories;
 
-    public string OriginalFilePath { get; private set; } = fileInfo.FullName;
-    public FileInfo FileInfo { get; private set; } = fileInfo;
-    public IReadOnlyList<MetadataExtractor.Directory> MetadataDirectory = ImageMetadataReader.ReadMetadata(fileInfo.FullName);
-
-    public DateTimeOffset? OriginDate { get; private set; }
-    public string? ShouldRenameTo { get; private set; }
+    public DateTimeOffset? OriginDate { get; set; }
+    public bool Compress { get; set; } // ToDo: Info that it enabled setting EXIF for unsupported file types
+    public bool FixExtension { get; set; }
+    public bool SetDates { get; set; } // ToDo: Maybe part of COmpress as technically when compressing dates have to be set? Or maybe not as Compress can auto set them?
 }

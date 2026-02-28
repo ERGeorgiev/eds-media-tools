@@ -1,3 +1,4 @@
+using EdsMediaArchiver.Services.Validators;
 using MetadataExtractor;
 using MetadataExtractor.Formats.Exif;
 using MetadataExtractor.Formats.QuickTime;
@@ -6,7 +7,9 @@ using System.Globalization;
 
 namespace EdsMediaArchiver.Services.FileDateReaders;
 
-public partial class OldestDateReader(IDateValidator dateValidator) : IFileDateReader, IOldestDateReader
+public interface IOldestDateReader : IFileDateReader { }
+
+public partial class OldestDateReader(IDateValidator dateValidator) : IOldestDateReader
 {
     /// <summary>
     /// Reads other trusted date tags: EXIF CreateDate/ModifyDate,

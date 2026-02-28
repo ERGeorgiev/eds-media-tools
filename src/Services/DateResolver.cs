@@ -4,6 +4,11 @@ namespace EdsMediaArchiver.Services;
 
 // ToDo: Read mmetadata OffsetTime to get "+05:00" or something like that and take it into consideration
 
+public interface IDateResolver
+{
+    DateTimeOffset? ResolveBestDate(FileInfo fileInfo, IEnumerable<MetadataExtractor.Directory> fileDirectories);
+}
+
 /// <summary>
 /// Determines the best date for a media file using the priority:
 ///   1. DateTimeOriginal (EXIF) — wins unconditionally
@@ -14,7 +19,7 @@ namespace EdsMediaArchiver.Services;
 public partial class DateResolver(
     IOriginalDateReader originalDateReader,
     IFilenameDateReader filenameDateReader,
-    IOldestDateReader oldestDateReader)
+    IOldestDateReader oldestDateReader) : IDateResolver
 {
     private readonly IEnumerable<IFileDateReader> _dateReaders = [originalDateReader, filenameDateReader, oldestDateReader];
 

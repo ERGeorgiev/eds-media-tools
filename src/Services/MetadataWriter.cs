@@ -2,6 +2,14 @@ using ImageMagick;
 
 namespace EdsMediaArchiver.Services;
 
+public interface IMetadataWriter
+{
+    Task WriteExifDatesAsync(string filePath, DateTimeOffset date);
+    Task WritePngDatesAsync(string filePath, DateTimeOffset date);
+    void WriteVideoDates(string filePath, DateTimeOffset date);
+    Task WriteXmpDatesAsync(string filePath, DateTimeOffset date);
+}
+
 public class MetadataWriter : IMetadataWriter
 {
     public async Task WriteExifDatesAsync(string filePath, DateTimeOffset date)
@@ -30,6 +38,7 @@ public class MetadataWriter : IMetadataWriter
 
         profile.SetValue(ExifTag.DateTimeOriginal, dateStr);
         profile.SetValue(ExifTag.DateTimeDigitized, dateStr);
+        image.SetAttribute("png:tIME", date.ToString("yyyy-MM-ddTHH:mm:ssZ"));
 
         image.SetProfile(profile);
         await image.WriteAsync(filePath);
@@ -58,8 +67,6 @@ public class MetadataWriter : IMetadataWriter
         image.SetProfile(new XmpProfile(System.Text.Encoding.UTF8.GetBytes(xmpXml)));
         await image.WriteAsync(filePath);
     }
-
-    // ── Writing (video via TagLibSharp) ──────────────────────────────────
 
     public void WriteVideoDates(string filePath, DateTimeOffset date)
     {

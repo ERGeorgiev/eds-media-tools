@@ -1,11 +1,13 @@
 using EdsMediaArchiver;
 using EdsMediaArchiver.Models;
 using EdsMediaArchiver.Services;
-using MetadataExtractor.Util;
+using EdsMediaArchiver.Services.Converters;
+using EdsMediaArchiver.Services.FileDateReaders;
+using EdsMediaArchiver.Services.Processors;
+using EdsMediaArchiver.Services.Validators;
 using Microsoft.Extensions.DependencyInjection;
 using System.Diagnostics;
 using System.Reflection;
-using System.Reflection.Metadata;
 
 Console.WriteLine();
 Console.WriteLine("================================================");
@@ -33,6 +35,8 @@ Console.WriteLine("    - Convert media that doesn't support EXIF date metadata (
 Console.WriteLine("    - Write date metadata and set filesystem dates");
 Console.WriteLine("    - DELETE input files as it's creating new ones");
 
+// ToDo: Verify backup folder created
+
 Console.WriteLine();
 Console.Write("  Proceed? (Y/n) ");
 var confirm = Console.ReadLine();
@@ -48,13 +52,19 @@ if (confirm?.TrimStart().StartsWith("Y", StringComparison.OrdinalIgnoreCase) == 
 var serviceProvider = new ServiceCollection()
     .AddSingleton<IDateValidator, DateValidator>()
     .AddSingleton<IMetadataWriter, MetadataWriter>()
+    .AddSingleton<IOriginalDateReader, OriginalDateReader>()
+    .AddSingleton<IFilenameDateReader, FilenameDateReader>()
+    .AddSingleton<IOldestDateReader, OldestDateReader>()
+    .AddSingleton<IDateResolver, DateResolver>()
+    .AddSingleton<IFileTypeService, FileTypeService>()
+    .AddSingleton<IImageConverter, ImageConverter>()
+    .AddSingleton<IMediaFileProcessor, MediaFileProcessor>()
+    .AddSingleton<IFileProcessingRequestFactory, FileProcessingRequestFactory>()
     .BuildServiceProvider();
 
 // Services
-var magick = new ImageMagickService();
-var metadataService = new MetadataWriter();
-var dateResolver = new DateResolver(metadataService);
-var mediaFileProcessor = new MediaFileProcessor(magick, metadataService, dateResolver);
+var mediaFileProcessor = serviceProvider.GetRequiredService<IMediaFileProcessor>();
+var fileRequestFactory = serviceProvider.GetRequiredService<IFileProcessingRequestFactory>();
 
 // 1. Get all files
 // 2. Rename mistyped files
@@ -69,7 +79,7 @@ foreach (var inputPath in args)
     Console.WriteLine($"Processing: {inputPath}");
     Console.WriteLine();
 
-    FileSystemInfo targetInfo = new FileInfo(inputPath);
+    var targetInfo = new FileInfo(inputPath);
     var exists = (int)targetInfo.Attributes != -1;
     if (exists == false)
     {
@@ -89,7 +99,7 @@ foreach (var inputPath in args)
         dirPath = Path.GetDirectoryName(inputPath) ?? "";
         files = [inputPath];
     }
-    var unsupportedFiles = files.Where(f => Constants.SupportedExtensions.Contains(Path.GetExtension(f)) == false).ToList();
+    var unsupportedFiles = files.Where(f => Constants.SupportedExtensions.Contains(Path.GetExtension(f)) == false).ToList(); // ToDo: Decide with actual type
     var supportedFiles = files.Except(unsupportedFiles).ToList();
     Console.WriteLine($"  Found {supportedFiles.Count} supported files");
     Console.WriteLine($"  Found {unsupportedFiles.Count} unsupported files");
@@ -102,7 +112,8 @@ foreach (var inputPath in args)
         await semaphore.WaitAsync();
         try
         {
-            return await mediaFileProcessor.ProcessFileAsync(dirPath, file);
+            var request = fileRequestFactory.Create(dirPath, file);
+            return await mediaFileProcessor.ProcessFileAsync(request);
         }
         finally
         {
