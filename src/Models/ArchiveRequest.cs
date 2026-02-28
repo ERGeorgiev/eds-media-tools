@@ -10,6 +10,6 @@ public class ArchiveRequest(string rootPath, FileInfo fileInfo, string actualFil
 
     public DateTimeOffset? OriginDate { get; set; }
     public bool Compress { get; set; }
-    public bool FixExtension { get; set; }
     public bool SetDates { get; set; }
+    public bool ConvertIfUnreliableForDates { get; set; }
 }

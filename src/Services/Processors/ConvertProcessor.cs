@@ -3,7 +3,7 @@ using EdsMediaArchiver.Services.Compressors;
 
 namespace EdsMediaArchiver.Services.Processors;
 
-public interface ICompressProcessor
+public interface IConvertProcessor
 {
     /// <summary>
     /// Fixes the file extension and/or compresses the file based on request flags.
@@ -12,17 +12,27 @@ public interface ICompressProcessor
     Task<ProcessingResult?> ProcessAsync(ArchiveRequest request);
 }
 
-public class CompressProcessor(IEnumerable<IMediaCompressor> compressors) : ICompressProcessor
+public class ConvertProcessor(IEnumerable<IMediaCompressor> compressors) : IConvertProcessor
 {
     public async Task<ProcessingResult?> ProcessAsync(ArchiveRequest request)
     {
-        var compressor = compressors.FirstOrDefault(c => c.IsSupported(request.ActualFileType));
-        if (compressor != null)
+        var actualType = request.ActualFileType;
+        bool wasRenamed = false;
+
+        if (request.Compress)
         {
-            var result = await CompressFileAsync(request, compressor);
-            if (result != null)
-                return result;
+            var compressor = compressors.FirstOrDefault(c => c.IsSupported(actualType));
+            if (compressor != null)
+            {
+                var result = await CompressFileAsync(request, compressor);
+                if (result != null)
+                    return result;
+            }
         }
+
+        // 3. If only extension was fixed, report that
+        if (wasRenamed)
+            return new ProcessingResult(request.NewPath.Relative, null, ProcessingStatus.Renamed);
 
         return null;
     }

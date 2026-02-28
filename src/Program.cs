@@ -40,15 +40,23 @@ Console.WriteLine("      Images (WebP, BMP, TIFF, GIF) -> JPG (multi-frame GIF -
 Console.WriteLine("      Video  (AVI, MKV, WMV, MOV, 3GP) -> MP4 (H.264 + AAC)");
 Console.WriteLine("      Audio  (MP3, WAV, FLAC, AAC, WMA, M4A) -> OGG (Vorbis)");
 Console.Write("    (Y/n): ");
-var preferenceCcompress = AskYesNo();
+var preferenceCompress = AskYesNo();
 Console.WriteLine();
 
 Console.WriteLine("  Set file dates?");
 Console.WriteLine("    Writes date metadata and sets filesystem Created/Modified dates.");
 Console.Write("    (Y/n): ");
 var preferenceSetDates = AskYesNo();
+bool preferenceConvertToSetDate = false;
+if (preferenceSetDates && preferenceCompress == false)
+{
+    Console.WriteLine("  Convert files that cannot realiably have dates set?");
+    Console.WriteLine("    Examples: PNG, GIF");
+    Console.Write("    (Y/n): ");
+    preferenceConvertToSetDate = AskYesNo();
+}
 
-if (!preferenceCcompress && !preferenceSetDates)
+if (!preferenceCompress && !preferenceSetDates)
 {
     Console.WriteLine();
     Console.WriteLine("  No options selected. Nothing to do.");
@@ -59,8 +67,9 @@ if (!preferenceCcompress && !preferenceSetDates)
 
 Console.WriteLine();
 Console.WriteLine("  Selected options:");
-if (preferenceCcompress)      Console.WriteLine("    - Compress files");
+if (preferenceCompress)      Console.WriteLine("    - Compress files");
 if (preferenceSetDates)      Console.WriteLine("    - Set file dates");
+if (preferenceConvertToSetDate)      Console.WriteLine("    - Convert files unreliable for dates");
 
 // ToDo: Verify backup folder created
 
@@ -138,8 +147,9 @@ foreach (var inputPath in args)
         try
         {
             var request = fileRequestFactory.Create(dirPath, file);
-            request.Compress = preferenceCcompress;
+            request.Compress = preferenceCompress;
             request.SetDates = preferenceSetDates;
+            request.ConvertIfUnreliableForDates = preferenceConvertToSetDate;
             return await mediaFileProcessor.ProcessFileAsync(request);
         }
         finally

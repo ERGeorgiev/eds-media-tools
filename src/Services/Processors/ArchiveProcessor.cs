@@ -21,11 +21,11 @@ public class ArchiveProcessor(
         {
             ProcessingResult? compressResult = null;
 
-            // 1. Extension fix + compression (merged into one step)
-            if (request.FixExtension || request.Compress)
+            // 1. Compress
+            if (request.Compress)
                 compressResult = await compressProcessor.ProcessAsync(request);
 
-            // 2. Date setting (handles all types, including post-compression)
+            // 2. Date
             if (request.SetDates)
             {
                 var dateResult = await dateProcessor.ProcessAsync(request);
