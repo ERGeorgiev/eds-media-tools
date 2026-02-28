@@ -12,21 +12,14 @@ public class GifCompressor : IMediaCompressor
     public bool IsSupported(string actualType) =>
         actualType.Equals(MediaType.Gif, StringComparison.OrdinalIgnoreCase);
 
-    public async Task<string?> CompressAsync(string sourcePath, string outputDirectory)
+    public async Task<string> CompressAsync(string sourcePath, string outputDirectory)
     {
-        try
-        {
-            var frameCount = GetFrameCount(sourcePath);
+        var frameCount = GetFrameCount(sourcePath);
 
-            if (frameCount <= 1)
-                return await ConvertToJpgAsync(sourcePath, outputDirectory);
-            else
-                return await ConvertToMp4Async(sourcePath, outputDirectory);
-        }
-        catch
-        {
-            return null;
-        }
+        if (frameCount <= 1)
+            return await ConvertToJpgAsync(sourcePath, outputDirectory);
+        else
+            return await ConvertToMp4Async(sourcePath, outputDirectory);
     }
 
     private static int GetFrameCount(string path)
@@ -36,7 +29,7 @@ public class GifCompressor : IMediaCompressor
         return images.Count;
     }
 
-    private static async Task<string?> ConvertToJpgAsync(string sourcePath, string outputDirectory)
+    private static async Task<string> ConvertToJpgAsync(string sourcePath, string outputDirectory)
     {
         var outputPath = Path.Combine(outputDirectory,
             Path.GetFileNameWithoutExtension(sourcePath) + ".jpg");
@@ -53,7 +46,7 @@ public class GifCompressor : IMediaCompressor
         return outputPath;
     }
 
-    private static async Task<string?> ConvertToMp4Async(string sourcePath, string outputDirectory)
+    private static async Task<string> ConvertToMp4Async(string sourcePath, string outputDirectory)
     {
         var outputPath = Path.Combine(outputDirectory,
             Path.GetFileNameWithoutExtension(sourcePath) + ".mp4");
@@ -69,7 +62,7 @@ public class GifCompressor : IMediaCompressor
                 .WithCustomArgument("-movflags +faststart"))
             .ProcessAsynchronously();
 
-        return File.Exists(outputPath) ? outputPath : null;
+        return outputPath;
     }
 
     private static string GetUniqueFilePath(string path)

@@ -1,5 +1,5 @@
 using EdsMediaArchiver.Helpers;
-using EdsMediaArchiver.Models;
+using TagLib;
 
 namespace EdsMediaArchiver.Services.Converters;
 
@@ -10,40 +10,26 @@ public class TrueExtensionConverter : IMediaConverter
 {
     public bool IsSupported(string actualType) => Constants.FileTypeToExtension.ContainsKey(actualType);
 
-    public Task<ProcessingResult?> ConvertAsync(ArchiveRequest request)
+    public Task<string> ConvertAsync(string sourcePath, string outputDirectory, string actualType)
     {
-        try
-        {
-            if (FixExtension(request))
-            {
-                return Task.FromResult<ProcessingResult?>(new ProcessingResult(request.NewPath.Relative, null, ProcessingStatus.Renamed));
-            }
-        }
-        catch { }
-        return Task.FromResult<ProcessingResult?>(null);
-    }
-
-    private static bool FixExtension(ArchiveRequest request)
-    {
-        if (Constants.FileTypeToExtension.TryGetValue(request.ActualFileType, out var correctExt) == false)
-            return false;
+        if (Constants.FileTypeToExtension.TryGetValue(actualType, out var correctExt) == false)
+            throw new UnsupportedFormatException($"File '{sourcePath}' with type '{actualType}' is not supported.");
         if (Constants.ExtensionToFileType.TryGetValue(correctExt, out var correctExtFileType) == false)
-            return false;
-        var currentExt = Path.GetExtension(request.NewPath.Absolute);
+            throw new UnsupportedFormatException($"File '{sourcePath}' with type '{actualType}' is not supported.");
+        var currentExt = Path.GetExtension(sourcePath);
         if (Constants.ExtensionToFileType.TryGetValue(currentExt, out var currentExtFileType) == false)
-            return false;
+            throw new UnsupportedFormatException($"File '{sourcePath}' with type '{actualType}' is not supported.");
 
         if (currentExtFileType.Equals(correctExtFileType, StringComparison.OrdinalIgnoreCase))
-            return false;
+            return Task.FromResult(sourcePath);
 
-        var oldPath = request.NewPath.Absolute;
+        var oldPath = sourcePath;
         var newPath = Path.ChangeExtension(oldPath, correctExt);
         newPath = FileHelpers.GetUniqueFilePath(newPath);
 
-        File.Move(oldPath, newPath);
-        request.NewPath = new PathInfo(request.NewPath.Root, newPath);
+        System.IO.File.Move(oldPath, newPath);
 
-        Console.WriteLine($"  [RENAME] {request.OriginalPath.Relative} -> {Path.GetFileName(newPath)} (actual type: {request.ActualFileType})");
-        return true;
+        Console.WriteLine($"  [RENAME] {oldPath} -> {Path.GetFileName(newPath)} (actual type: {actualType})");
+        return Task.FromResult(newPath);
     }
 }

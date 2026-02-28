@@ -10,32 +10,25 @@ public class VideoCompressor : IMediaCompressor
 {
     public bool IsSupported(string actualType) => MediaType.CompressibleVideoTypes.Contains(actualType);
 
-    public async Task<string?> CompressAsync(string sourcePath, string outputDirectory)
+    public async Task<string> CompressAsync(string sourcePath, string outputDirectory)
     {
-        try
-        {
-            var outputPath = Path.Combine(outputDirectory,
-                Path.GetFileNameWithoutExtension(sourcePath) + ".mp4");
-            outputPath = GetUniqueFilePath(outputPath);
+        var outputPath = Path.Combine(outputDirectory,
+            Path.GetFileNameWithoutExtension(sourcePath) + ".mp4");
+        outputPath = GetUniqueFilePath(outputPath);
 
-            await FFMpegArguments
-                .FromFileInput(sourcePath)
-                .OutputToFile(outputPath, overwrite: false, options => options
-                    .WithVideoCodec("libx264")
-                    .WithConstantRateFactor(23)
-                    .WithSpeedPreset(Speed.Slow)
-                    .WithAudioCodec("aac")
-                    .WithAudioBitrate(128)
-                    .WithCustomArgument("-map_metadata 0")
-                    .WithCustomArgument("-movflags use_metadata_tags"))
-                .ProcessAsynchronously();
+        await FFMpegArguments
+            .FromFileInput(sourcePath)
+            .OutputToFile(outputPath, overwrite: false, options => options
+                .WithVideoCodec("libx264")
+                .WithConstantRateFactor(23)
+                .WithSpeedPreset(Speed.Slow)
+                .WithAudioCodec("aac")
+                .WithAudioBitrate(128)
+                .WithCustomArgument("-map_metadata 0")
+                .WithCustomArgument("-movflags use_metadata_tags"))
+            .ProcessAsynchronously();
 
-            return File.Exists(outputPath) ? outputPath : null;
-        }
-        catch
-        {
-            return null;
-        }
+        return outputPath;
     }
 
     private static string GetUniqueFilePath(string path)

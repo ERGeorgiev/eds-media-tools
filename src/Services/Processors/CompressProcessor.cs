@@ -16,18 +16,23 @@ public class CompressProcessor(IEnumerable<IMediaCompressor> compressors) : ICom
 {
     public async Task<ProcessingResult?> ProcessAsync(ArchiveRequest request)
     {
-        var compressor = compressors.FirstOrDefault(c => c.IsSupported(request.ActualFileType));
-        if (compressor != null)
+        try
         {
-            var result = await CompressFileAsync(request, compressor);
-            if (result != null)
-                return result;
+            var compressor = compressors.FirstOrDefault(c => c.IsSupported(request.ActualFileType));
+            if (compressor != null)
+            {
+                return await CompressFileAsync(request, compressor);
+            }
+        }
+        catch (Exception e)
+        {
+            return new ProcessingResult(request.NewPath.Absolute, null, ProcessingStatus.Error, e.Message);
         }
 
         return null;
     }
 
-    private static async Task<ProcessingResult?> CompressFileAsync(ArchiveRequest request, IMediaCompressor compressor)
+    private static async Task<ProcessingResult> CompressFileAsync(ArchiveRequest request, IMediaCompressor compressor)
     {
         var filePath = request.NewPath.Absolute;
         var rootPath = request.NewPath.Root;
@@ -47,7 +52,7 @@ public class CompressProcessor(IEnumerable<IMediaCompressor> compressors) : ICom
 
         var outputRelative = Path.GetRelativePath(rootPath, outputPath);
         Console.WriteLine($"  [CONV] {relativePath} -> {outputRelative}");
-        request.NewPath = new PathInfo(rootPath, outputPath);
+        request.NewPath = new FilePathInfo(rootPath, outputPath);
         return new ProcessingResult(relativePath, null, ProcessingStatus.Converted);
     }
 }

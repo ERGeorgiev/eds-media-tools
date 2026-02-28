@@ -11,28 +11,21 @@ public class AudioCompressor : IMediaCompressor
         MediaType.AudioTypes.Contains(actualType) &&
         !actualType.Equals(MediaType.Ogg, StringComparison.OrdinalIgnoreCase);
 
-    public async Task<string?> CompressAsync(string sourcePath, string outputDirectory)
+    public async Task<string> CompressAsync(string sourcePath, string outputDirectory)
     {
-        try
-        {
-            var outputPath = Path.Combine(outputDirectory,
-                Path.GetFileNameWithoutExtension(sourcePath) + ".ogg");
-            outputPath = GetUniqueFilePath(outputPath);
+        var outputPath = Path.Combine(outputDirectory,
+            Path.GetFileNameWithoutExtension(sourcePath) + ".ogg");
+        outputPath = GetUniqueFilePath(outputPath);
 
-            await FFMpegArguments
-                .FromFileInput(sourcePath)
-                .OutputToFile(outputPath, overwrite: false, options => options
-                    .WithAudioCodec("libvorbis")
-                    .WithCustomArgument("-qscale:a 5")
-                    .WithCustomArgument("-vn"))
-                .ProcessAsynchronously();
+        await FFMpegArguments
+            .FromFileInput(sourcePath)
+            .OutputToFile(outputPath, overwrite: false, options => options
+                .WithAudioCodec("libvorbis")
+                .WithCustomArgument("-qscale:a 5")
+                .WithCustomArgument("-vn"))
+            .ProcessAsynchronously();
 
-            return File.Exists(outputPath) ? outputPath : null;
-        }
-        catch
-        {
-            return null;
-        }
+        return outputPath;
     }
 
     private static string GetUniqueFilePath(string path)

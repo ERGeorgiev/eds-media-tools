@@ -2,6 +2,7 @@ using EdsMediaArchiver;
 using EdsMediaArchiver.Models;
 using EdsMediaArchiver.Services;
 using EdsMediaArchiver.Services.Compressors;
+using EdsMediaArchiver.Services.Converters;
 using EdsMediaArchiver.Services.FileDateReaders;
 using EdsMediaArchiver.Services.Processors;
 using EdsMediaArchiver.Services.Resolvers;

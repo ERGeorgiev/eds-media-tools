@@ -15,5 +15,5 @@ public interface IMediaConverter
     /// Returns the output file path, or null if compression failed.
     /// The caller is responsible for deleting the original file.
     /// </summary>
-    Task<ProcessingResult?> ConvertAsync(ArchiveRequest request);
+    Task<string> ConvertAsync(string sourcePath, string outputDirectory, string actualType);
 }
