@@ -1,4 +1,4 @@
-namespace EdsMediaArchiver;
+namespace EdsMediaArchiver.Definitions;
 
 public static class MediaType
 {
@@ -74,6 +74,7 @@ public static class MediaType
 
     public static readonly HashSet<string> DateWritableImageTypes = new(StringComparer.OrdinalIgnoreCase)
     {
+        // EXIF support
         Jpeg, Heic, Heif, Tiff
     };
 
@@ -98,23 +99,4 @@ public static class MediaType
 
     public static readonly HashSet<string> SupportedTypes = new([.. SupportedImageTypes, .. SupportedVideoTypes, .. SupportedAudioTypes],
         StringComparer.OrdinalIgnoreCase);
-
-    /// <summary>Image types that can only store XMP — need converting to JPG for proper EXIF.</summary>
-    public static readonly HashSet<string> CompressibleImageTypes = new(StringComparer.OrdinalIgnoreCase)
-    {
-        Webp,
-        Bmp,
-        Tiff
-    };
-
-    /// <summary>Video types that should be compressed to MP4.</summary>
-    public static readonly HashSet<string> CompressibleVideoTypes = new(StringComparer.OrdinalIgnoreCase)
-    {
-        Mov,
-        Avi,
-        Mkv,
-        Mts,
-        Wmv,
-        ThreeGp,
-    };
 }

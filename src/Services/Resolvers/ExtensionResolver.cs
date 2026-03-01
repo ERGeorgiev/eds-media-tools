@@ -1,7 +1,8 @@
+using EdsMediaArchiver.Definitions;
 using EdsMediaArchiver.Helpers;
 using TagLib;
 
-namespace EdsMediaArchiver.Services;
+namespace EdsMediaArchiver.Services.Resolvers;
 
 public interface IExtensionRestorer
 {
@@ -12,18 +13,18 @@ public interface IExtensionRestorer
 /// <summary>
 /// Renames files to ensure their extension matches their actual type.
 /// </summary>
-public class ExtensionRestorer : IExtensionRestorer
+public class ExtensionResolver : IExtensionRestorer
 {
-    public bool IsSupported(string actualType) => Constants.FileTypeToExtension.ContainsKey(actualType);
+    public bool IsSupported(string actualType) => ExtensionsTypes.FileTypeToExtension.ContainsKey(actualType);
 
     public Task<string> RestoreExtension(string sourcePath, string outputDirectory, string actualType)
     {
-        if (Constants.FileTypeToExtension.TryGetValue(actualType, out var correctExt) == false)
+        if (ExtensionsTypes.FileTypeToExtension.TryGetValue(actualType, out var correctExt) == false)
             throw new UnsupportedFormatException($"File '{sourcePath}' with type '{actualType}' is not supported.");
-        if (Constants.ExtensionToFileType.TryGetValue(correctExt, out var correctExtFileType) == false)
+        if (ExtensionsTypes.ExtensionToFileType.TryGetValue(correctExt, out var correctExtFileType) == false)
             throw new UnsupportedFormatException($"File '{sourcePath}' with type '{actualType}' is not supported.");
         var currentExt = Path.GetExtension(sourcePath);
-        if (Constants.ExtensionToFileType.TryGetValue(currentExt, out var currentExtFileType) == false)
+        if (ExtensionsTypes.ExtensionToFileType.TryGetValue(currentExt, out var currentExtFileType) == false)
             throw new UnsupportedFormatException($"File '{sourcePath}' with type '{actualType}' is not supported.");
 
         if (currentExtFileType.Equals(correctExtFileType, StringComparison.OrdinalIgnoreCase))

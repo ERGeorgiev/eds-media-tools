@@ -1,3 +1,4 @@
+using EdsMediaArchiver.Definitions;
 using EdsMediaArchiver.Helpers;
 using ImageMagick;
 
@@ -10,23 +11,53 @@ public interface IImageCompressor : IMediaCompressor { }
 /// </summary>
 public class ImageCompressor : IImageCompressor
 {
-    public bool IsSupported(string actualType) => MediaType.SupportedImageTypes.Contains(actualType);
+    public static readonly HashSet<string> SupportedTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        MediaType.Jpeg, MediaType.Png, MediaType.Bmp
+        // Any other types may be adversely affected by the current compressor, like HEIC/HEIF that are
+        // more efficient than the compressor's output JPEG.
+    };
 
-    public async Task<string> CompressAsync(string sourcePath, string outputDirectory)
+    public bool IsSupported(string actualType) => SupportedTypes.Contains(actualType);
+
+    public async Task<string> CompressAsync(string sourcePath, string outputDirectory, CompressorMode compressorMode)
     {
         var outputPath = Path.Combine(outputDirectory, Path.GetFileNameWithoutExtension(sourcePath) + ".jpg");
+        if (compressorMode == CompressorMode.Convert && sourcePath == outputPath)
+            return outputPath; // Already converted
         outputPath = FileHelper.GetUniqueFilePath(outputPath);
 
         using var image = new MagickImage();
         await image.ReadAsync(sourcePath);
 
         image.AutoOrient();
-        // The '>' flag means "only shrink if the image is larger than the dimensions"
-        var size = new MagickGeometry($"1920x1920>");
-        image.Quality = 85;
-        image.Settings.SetDefine("jpeg:sampling-factor", "4:2:0"); 
-        image.Settings.Interlace = Interlace.Plane;
-        image.ColorSpace = ColorSpace.sRGB;
+        switch (compressorMode)
+        {
+            case CompressorMode.CompressAndResize:
+            case CompressorMode.Compress:
+                image.Quality = 85;
+                image.Settings.SetDefine("jpeg:sampling-factor", "4:2:0");
+                image.Settings.Interlace = Interlace.Plane;
+                image.ColorSpace = ColorSpace.sRGB; 
+                if (compressorMode == CompressorMode.CompressAndResize)
+                {
+                    var size = new MagickGeometry("1920x1920>");
+                    image.Resize(size);
+                }
+                break;
+            case CompressorMode.Convert:
+                image.Quality = 92;
+                image.Settings.SetDefine("jpeg:sampling-factor", "1x1,1x1,1x1");
+                // COLOR FIDELITY: Ensure the ICC profile is present. Keep image profile (like Adobe RGB). 
+                // If no profile, define sRGB so browsers don't guess.
+                if (image.GetColorProfile() == null)
+                {
+                    image.ColorSpace = ColorSpace.sRGB;
+                }
+                break;
+            default:
+                throw new NotSupportedException($"Mode {compressorMode} not supported");
+        }
 
         await image.WriteAsync(outputPath, MagickFormat.Jpeg);
         return outputPath;

@@ -1,12 +1,12 @@
-using EdsMediaArchiver;
+using EdsMediaArchiver.Definitions;
 using EdsMediaArchiver.Services;
 using EdsMediaArchiver.Services.Compressors;
-using EdsMediaArchiver.Services.Converters;
 using EdsMediaArchiver.Services.FileDateReaders;
 using EdsMediaArchiver.Services.Logging;
 using EdsMediaArchiver.Services.Processors;
 using EdsMediaArchiver.Services.Resolvers;
 using EdsMediaArchiver.Services.Validators;
+using EdsMediaArchiver.Services.Writers;
 using ImageMagick;
 using Microsoft.Extensions.DependencyInjection;
 using System.Diagnostics;
@@ -99,7 +99,7 @@ var serviceProvider = new ServiceCollection()
     .AddSingleton<IOldestDateReader, OldestDateReader>()
     .AddSingleton<IFileDateResolver, FileDateResolver>()
     .AddSingleton<IFileTypeResolver, FileTypeResolver>()
-    .AddSingleton<IMediaCompressor, GifCompressor>()
+    .AddSingleton<IMediaCompressor, MixedFormatCompressor>()
     .AddSingleton<ImageCompressor>()
     .AddSingleton<IMediaCompressor, ImageCompressor>(x => x.GetRequiredService<ImageCompressor>())
     .AddSingleton<IImageCompressor, ImageCompressor>(x => x.GetRequiredService<ImageCompressor>())
@@ -108,17 +108,10 @@ var serviceProvider = new ServiceCollection()
     .AddSingleton<IVideoCompressor, VideoCompressor>(x => x.GetRequiredService<VideoCompressor>())
     .AddSingleton<IMediaCompressor, AudioCompressor>()
     .AddSingleton<ICompressProcessor, CompressProcessor>()
-    .AddSingleton<IMediaConverter, GifConverter>()
-    .AddSingleton<ImageConverter>()
-    .AddSingleton<IMediaConverter, ImageConverter>(x => x.GetRequiredService<ImageConverter>())
-    .AddSingleton<IImageConverter, ImageConverter>(x => x.GetRequiredService<ImageConverter>())
-    .AddSingleton<VideoConverter>()
-    .AddSingleton<IMediaConverter, VideoConverter>(x => x.GetRequiredService<VideoConverter>())
-    .AddSingleton<IVideoConverter, VideoConverter>(x => x.GetRequiredService<VideoConverter>())
-    .AddSingleton<IConvertProcessor, ConvertProcessor>()
     .AddSingleton<IDateProcessor, DateProcessor>()
     .AddSingleton<IArchiveProcessor, ArchiveProcessor>()
     .AddSingleton<IArchiveRequestFactory, ArchiveRequestFactory>()
+    .AddSingleton<IXmpWriter, XmpWriter>()
     .BuildServiceProvider();
 
 // Services

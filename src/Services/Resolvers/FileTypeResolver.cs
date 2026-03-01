@@ -1,3 +1,4 @@
+using EdsMediaArchiver.Definitions;
 using MetadataExtractor.Util;
 
 namespace EdsMediaArchiver.Services.Resolvers;
@@ -58,6 +59,6 @@ public class FileTypeResolver : IFileTypeResolver
     private static string InferTypeFromExtension(string filePath)
     {
         var ext = Path.GetExtension(filePath);
-        return Constants.ExtensionToFileType.TryGetValue(ext, out var fileType) ? fileType : MediaType.Unknown;
+        return ExtensionsTypes.ExtensionToFileType.TryGetValue(ext, out var fileType) ? fileType : MediaType.Unknown;
     }
 }

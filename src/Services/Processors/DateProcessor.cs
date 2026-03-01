@@ -1,14 +1,13 @@
+using EdsMediaArchiver.Definitions;
 using EdsMediaArchiver.Services.Logging;
 using EdsMediaArchiver.Services.Resolvers;
-using ImageMagick;
+using EdsMediaArchiver.Services.Writers;
 using MetadataExtractor;
 
 namespace EdsMediaArchiver.Services.Processors;
 
 public interface IDateProcessor
 {
-    public static bool IsReliableFileTypeForDate(string fileType) => MediaType.ExifWritableTypes.Contains(fileType);
-
     /// <summary>
     /// Writes date metadata and sets filesystem Created/Modified dates.
     /// Determines the current file type from the file path (handles post-compression type changes).
@@ -44,7 +43,7 @@ public class DateProcessor(
 
     private async Task WriteDateForTypeAsync(string filePath, string actualType, DateTimeOffset date)
     {
-        if (MediaType.ExifWritableTypes.Contains(actualType))
+        if (MediaType.DateWritableImageTypes.Contains(actualType))
             await metadataWriter.WriteExifDatesAsync(filePath, date);
         else if (MediaType.SupportedVideoTypes.Contains(actualType))
             metadataWriter.WriteVideoDates(filePath, date);

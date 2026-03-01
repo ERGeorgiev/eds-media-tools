@@ -1,5 +1,8 @@
+using EdsMediaArchiver.Definitions;
 using EdsMediaArchiver.Models;
+using EdsMediaArchiver.Services.Compressors;
 using EdsMediaArchiver.Services.Logging;
+using EdsMediaArchiver.Services.Resolvers;
 
 namespace EdsMediaArchiver.Services.Processors;
 
@@ -14,17 +17,17 @@ public interface IArchiveProcessor
 /// </summary>
 public class ArchiveProcessor(
     ICompressProcessor compressProcessor,
-    IConvertProcessor convertProcessor,
     IDateProcessor dateProcessor,
+    IExtensionRestorer extensionRestorer,
     IProcessLogger processLogger) : IArchiveProcessor
 {
     public async Task ProcessFileAsync(ArchiveRequest request)
     {
         try
         {
-            if (Constants.FileTypeToExtension.TryGetValue(request.ActualFileType, out var actualExtension))
+            if (ExtensionsTypes.FileTypeToExtension.TryGetValue(request.ActualFileType, out var actualExtension))
             {
-                if (Constants.SupportedExtensions.Contains(actualExtension) == false)
+                if (ExtensionsTypes.SupportedExtensions.Contains(actualExtension) == false)
                 {
                     processLogger.Log(IProcessLogger.Operation.Archive, IProcessLogger.Result.Skip, request.OriginalPath.Absolute, $"Unsupported FileType '{request.ActualFileType}'");
                     return;
@@ -33,16 +36,16 @@ public class ArchiveProcessor(
 
             if (request.Compress)
             {
-                var compressedFilePath = await compressProcessor.ProcessAsync(request.NewPath.Absolute, request.NewPath.Directory, request.ActualFileType);
-                request.NewPath = new(request.NewPath.Root, compressedFilePath);
+                var mode = request.CompressAndResize ? CompressorMode.CompressAndResize : CompressorMode.Compress;
+                var output = await compressProcessor.ProcessAsync(request.NewPath.Absolute, request.NewPath.Directory, request.ActualFileType, mode);
+                request.NewPath = new(request.NewPath.Root, output);
             }
-            
-            // ToDo: Instead of this, do a Compress/Standardize(if not compress)/SetDates
-            // That way, no need to wonder what supports EXIF what doesn't, what is read by a gallery what isn't.
-            if (request.ConvertIfUnreliableForDates && IDateProcessor.IsReliableFileTypeForDate(request.ActualFileType))
+            else if (request.Standardize)
             {
-                var convertedFilePath = await convertProcessor.ProcessAsync(request.NewPath.Absolute, request.NewPath.Directory, request.ActualFileType);
-                request.NewPath = new(request.NewPath.Root, convertedFilePath);
+                var output = await extensionRestorer.RestoreExtension(request.NewPath.Absolute, request.NewPath.Directory, request.ActualFileType);
+                request.NewPath = new(request.NewPath.Root, output);
+                output = await compressProcessor.ProcessAsync(request.NewPath.Absolute, request.NewPath.Directory, request.ActualFileType, CompressorMode.Convert);
+                request.NewPath = new(request.NewPath.Root, output);
             }
 
             if (request.SetDates)

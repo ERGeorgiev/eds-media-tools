@@ -8,6 +8,7 @@ public class ArchiveRequest(string rootPath, FileInfo fileInfo, string actualFil
     public string ActualFileType { get; } = actualFileType;
 
     public bool Compress { get; set; }
+    public bool CompressAndResize { get; set; }
+    public bool Standardize { get; set; }
     public bool SetDates { get; set; }
-    public bool ConvertIfUnreliableForDates { get; set; }
 }
