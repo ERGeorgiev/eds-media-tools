@@ -96,6 +96,11 @@ foreach (var inputPath in args)
             request.Standardize = prefs.Standardize;
             request.SetDates = prefs.SetDates;
             await mediaFileProcessor.ProcessFileAsync(request);
+            logs.PrintLogs(request.OriginalPath.Absolute);
+            if (request.OriginalPath != request.NewPath)
+            {
+                logs.PrintLogs(request.NewPath.Absolute);
+            }
         }
         finally
         {

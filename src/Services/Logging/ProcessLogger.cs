@@ -8,19 +8,15 @@ public interface IProcessLogger
     IEnumerable<ProcessLog> Logs { get; }
 
     void Log(Operation operation, Result result, string filePath, string message);
-
+    void PrintLogs(string filePath);
     void PrintSummary();
 
     public enum Operation
     {
         Compress,
         Convert,
-        ReadDate,
-        Process,
         Archive,
         Date,
-        Resolve,
-        Validate
     }
 
     public enum Result
@@ -44,14 +40,33 @@ public class ProcessLogger : IProcessLogger
     {
         var log = new ProcessLog(operation, result, filePath, message);
         _logs.Add(log);
-        var key = Path.Combine(Path.GetDirectoryName(filePath)!, Path.GetFileNameWithoutExtension(filePath));
+        var key = FilePathToKey(filePath);
         _logsPerFile.AddOrUpdate(key, [log], (k, v) => { v.Add(log); return v; });
         PrintLog(log);
+    }
+
+    public void PrintLogs(string filePath)
+    {
+        var key = FilePathToKey(filePath);
+        Console.WriteLine($"File: {filePath}");
+        if (_logsPerFile.TryGetValue(key, out var logs))
+        {
+            foreach (var log in logs)
+            {
+                PrintLog(log);
+            }
+        }
     }
 
     public static void PrintLog(ProcessLog log)
     {
         Console.WriteLine($"  [{log.Operation}:{log.Result}] {log.Message} for '{log.FilePath,-60}'");
+    }
+
+    private static string FilePathToKey(string filePath)
+    {
+        var key = Path.Combine(Path.GetDirectoryName(filePath)!, Path.GetFileNameWithoutExtension(filePath));
+        return key;
     }
 
     public void PrintSummary()
