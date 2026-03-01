@@ -14,7 +14,7 @@ internal static class FileHelper
         string candidate;
         do
         {
-            candidate = Path.Combine(dir, $"{baseName}_{counter}{ext}");
+            candidate = Path.Combine(dir, $"{baseName}_a{counter}{ext}");
             counter++;
         } while (File.Exists(candidate));
 

@@ -28,10 +28,36 @@ public class VideoCompressor : IVideoCompressor
     public async Task<string> CompressAsync(string sourcePath, string outputDirectory, CompressorMode compressorMode)
     {
         var outputPath = Path.Combine(outputDirectory, Path.GetFileNameWithoutExtension(sourcePath) + ".mp4");
-        if (compressorMode == CompressorMode.Convert && sourcePath == outputPath)
-            return outputPath; // Already converted
-        outputPath = FileHelper.GetUniqueFilePath(outputPath);
+        if (sourcePath == outputPath)
+        {
+            if (compressorMode == CompressorMode.Convert)
+            {
+                return outputPath; // Already converted
+            }
+            else
+            {
+                // Prevent compression of already compressed files.
+                var analysis = await FFProbe.AnalyseAsync(sourcePath);
+                var videoStream = analysis.VideoStreams.FirstOrDefault();
+                if (videoStream != null)
+                {
+                    bool isSmallEnough = videoStream.Width <= 1920 && videoStream.Height <= 1920;
 
+                    double bitrateKbps = analysis.Format.BitRate / 1000.0;
+                    bool isLowBitrate = bitrateKbps <= 5000;
+
+                    bool isModernCodec = videoStream.CodecName == "h264" || videoStream.CodecName == "hevc";
+
+
+                    if (isSmallEnough && isLowBitrate && isModernCodec)
+                    {
+                        return outputPath; // Already compressed
+                    }
+                }
+            }
+        }
+
+        outputPath = FileHelper.GetUniqueFilePath(outputPath);
         switch (compressorMode)
         {
             case CompressorMode.CompressAndResize:

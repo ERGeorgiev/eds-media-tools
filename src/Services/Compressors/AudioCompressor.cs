@@ -22,17 +22,17 @@ public class AudioCompressor : IMediaCompressor
     {
         var outputPath = Path.Combine(outputDirectory,
             Path.GetFileNameWithoutExtension(sourcePath) + ".ogg");
-        if (compressorMode == CompressorMode.Convert && sourcePath == outputPath)
-            return outputPath; // Already processed
-        outputPath = FileHelper.GetUniqueFilePath(outputPath);
+        if (sourcePath == outputPath)
+            return outputPath; // Already processed, other .ogg are likely small enough already.
 
+        outputPath = FileHelper.GetUniqueFilePath(outputPath);
         switch (compressorMode)
         {
             case CompressorMode.CompressAndResize:
             case CompressorMode.Compress:
                 await FFMpegArguments
                     .FromFileInput(sourcePath)
-                    .OutputToFile("output.ogg", overwrite: false, options => options
+                    .OutputToFile(outputPath, overwrite: false, options => options
                         .WithAudioCodec("libopus")
                         .WithAudioBitrate(128)
                         .WithCustomArgument("-frame_size 60")
@@ -43,7 +43,7 @@ public class AudioCompressor : IMediaCompressor
             case CompressorMode.Convert:
                 await FFMpegArguments
                     .FromFileInput(sourcePath)
-                    .OutputToFile("output.ogg", overwrite: false, options => options
+                    .OutputToFile(outputPath, overwrite: false, options => options
                         .WithAudioCodec("libopus")
                         .WithAudioBitrate(192)
                         .WithCustomArgument("-frame_size 60")
