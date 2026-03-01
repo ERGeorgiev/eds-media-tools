@@ -74,7 +74,7 @@ public class VideoCompressor : IVideoCompressor
                             .WithAudioBitrate(128)
                             .WithCustomArgument("-pix_fmt yuv420p")
                             .WithCustomArgument("-map_metadata 0")
-                            .WithCustomArgument("-movflags use_metadata_tags");
+                            .WithCustomArgument("-movflags +faststart+use_metadata_tags");
                         if (compressorMode == CompressorMode.CompressAndResize)
                         {
                             // If input width (iw) is > 1920, scale width to 1920 and height proportionally (-2).
@@ -103,7 +103,7 @@ public class VideoCompressor : IVideoCompressor
                         // Preserve Color Fidelity, "yuv420p" is the safe standard.
                         .WithCustomArgument("-pix_fmt yuv420p")
                         .WithCustomArgument("-map_metadata 0")
-                        .WithCustomArgument("-movflags use_metadata_tags")
+                        .WithCustomArgument("-movflags +faststart+use_metadata_tags")
                         // Ensure current dimensions are even (required for yuv420p)
                         .WithCustomArgument("-vf \"scale='trunc(iw/2)*2:trunc(ih/2)*2'\""))
                     .ProcessAsynchronously();
