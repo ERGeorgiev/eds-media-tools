@@ -38,7 +38,8 @@ public class XmpWriter : IXmpWriter
         SetOrAddProperty(description, ExifNs + "DateTimeDigitized", xmpDate);
         SetOrAddProperty(description, TiffNs + "DateTime", ConvertToTiffDate(xmpDate));
 
-        image.SetProfile(new XmpProfile(Encoding.UTF8.GetBytes(WrapWithXpacket(doc))));
+        var xmpBytes = SerializeXmpPacket(doc);
+        image.SetProfile(new XmpProfile(xmpBytes));
     }
 
     private static XDocument LoadOrCreateXmpDocument(MagickImage image, string xmpDate)
@@ -57,6 +58,35 @@ public class XmpWriter : IXmpWriter
         {
             return CreateBaseXmp(xmpDate);
         }
+    }
+
+    private static byte[] SerializeXmpPacket(XDocument doc)
+    {
+        // Strip any existing xpacket processing instructions to avoid double-wrapping
+        doc.Nodes()
+            .OfType<XProcessingInstruction>()
+            .Where(pi => pi.Target == "xpacket")
+            .ToList()
+            .ForEach(pi => pi.Remove());
+
+        using var ms = new MemoryStream();
+        doc.Save(ms, SaveOptions.DisableFormatting);
+
+        var xmlBytes = ms.ToArray();
+
+        // Strip UTF-8 BOM if present (XDocument.Save writes one)
+        if (xmlBytes.Length >= 3 && xmlBytes[0] == 0xEF && xmlBytes[1] == 0xBB && xmlBytes[2] == 0xBF)
+            xmlBytes = xmlBytes[3..];
+
+        var begin = "<?xpacket begin=\"\uFEFF\" id=\"W5M0MpCehiHzreSzNTczkc9d\"?>\n"u8;
+        var end = "\n<?xpacket end=\"w\"?>"u8;
+
+        var result = new byte[begin.Length + xmlBytes.Length + end.Length];
+        begin.CopyTo(result);
+        xmlBytes.CopyTo(result.AsSpan(begin.Length));
+        end.CopyTo(result.AsSpan(begin.Length + xmlBytes.Length));
+
+        return result;
     }
 
     private static XDocument CreateBaseXmp(string date)
@@ -107,31 +137,5 @@ public class XmpWriter : IXmpWriter
         }
 
         parent.Add(new XAttribute(name, value));
-    }
-
-    private static string WrapWithXpacket(XDocument doc)
-    {
-        var sb = new StringBuilder();
-        sb.Append("<?xpacket begin=\"\uFEFF\" id=\"W5M0MpCehiHzreSzNTczkc9d\"?>\n");
-
-        using (var writer = new Utf8StringWriter(sb))
-        {
-            doc.Save(writer, SaveOptions.DisableFormatting);
-        }
-
-        sb.Append('\n');
-        for (var i = 0; i < 32; i++)
-        {
-            sb.Append(new string(' ', 64));
-            sb.Append('\n');
-        }
-
-        sb.Append("<?xpacket end=\"w\"?>");
-        return sb.ToString();
-    }
-
-    private sealed class Utf8StringWriter(StringBuilder sb) : StringWriter(sb)
-    {
-        public override Encoding Encoding => Encoding.UTF8;
     }
 }

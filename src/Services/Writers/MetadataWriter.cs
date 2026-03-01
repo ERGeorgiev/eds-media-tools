@@ -20,6 +20,7 @@ public class MetadataWriter(IXmpWriter xmpWriter) : IMetadataWriter
 
         // Update EXIF
         var exif = image.GetExifProfile() ?? new ExifProfile();
+        exif.Parts = ExifParts.All;
         exif.SetValue(ExifTag.DateTimeOriginal, exifDate);
         exif.SetValue(ExifTag.DateTimeDigitized, exifDate);
         exif.SetValue(ExifTag.DateTime, exifDate);
@@ -28,7 +29,7 @@ public class MetadataWriter(IXmpWriter xmpWriter) : IMetadataWriter
         // Update XMP (Safe Merge)
         xmpWriter.UpdateImageXmpProfile(image, date);
 
-        if (Path.GetExtension(filePath) == ".png")
+        if (Path.GetExtension(filePath).Equals(".png", StringComparison.OrdinalIgnoreCase))
         {
             // PNG Specific Attribute
             // tIME chunk is traditionally UTC
