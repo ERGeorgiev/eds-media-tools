@@ -1,21 +1,13 @@
 using EdsMediaArchiver.Definitions;
+using EdsMediaArchiver.Helpers;
 using EdsMediaArchiver.Services;
-using EdsMediaArchiver.Services.Compressors;
-using EdsMediaArchiver.Services.FileDateReaders;
 using EdsMediaArchiver.Services.Logging;
 using EdsMediaArchiver.Services.Processors;
-using EdsMediaArchiver.Services.Resolvers;
-using EdsMediaArchiver.Services.Validators;
-using EdsMediaArchiver.Services.Writers;
-using ImageMagick;
 using Microsoft.Extensions.DependencyInjection;
 using System.Diagnostics;
 using System.Reflection;
 
 //ToDo: Gifs, Transparent PNGs, Re-compressing JPGs (cases where its wanted and not)
-
-var format = MagickNET.SupportedFormats.First(f => f.Format == MagickFormat.Gif);
-var test = FFMpegCore.FFProbe.AnalyseAsync(Path.Combine(Directory.GetCurrentDirectory(), "TestData", "big-gif-converted3.jpg")).Result;
 
 Console.WriteLine();
 Console.WriteLine("================================================");
@@ -37,52 +29,15 @@ if (args.Length == 0)
     return 1;
 }
 
-// Ask user preferences
-Console.WriteLine("  What would you like to do?");
-Console.WriteLine();
-
-Console.WriteLine("  Compress files?");
-Console.WriteLine("    Converts media to optimal formats:");
-Console.WriteLine("      Images (WebP, BMP, TIFF, GIF) -> JPG (multi-frame GIF -> MP4)");
-Console.WriteLine("      Video  (AVI, MKV, WMV, MOV, 3GP) -> MP4 (H.264 + AAC)");
-Console.WriteLine("      Audio  (MP3, WAV, FLAC, AAC, WMA, M4A) -> OGG (Vorbis)");
-Console.Write("    (Y/n): ");
-var preferenceCompress = AskYesNo();
-Console.WriteLine();
-
-Console.WriteLine("  Set file dates?");
-Console.WriteLine("    Writes date metadata and sets filesystem Created/Modified dates.");
-Console.Write("    (Y/n): ");
-var preferenceSetDates = AskYesNo();
-bool preferenceConvertToSetDate = false;
-if (preferenceSetDates && preferenceCompress == false)
+if (ConsoleHelper.TryGetUserPreferences(out var prefs) == false)
 {
-    Console.WriteLine("  Convert files that cannot realiably have dates set?");
-    Console.WriteLine("    Examples: PNG, GIF");
-    Console.Write("    (Y/n): ");
-    preferenceConvertToSetDate = AskYesNo();
-}
-
-if (!preferenceCompress && !preferenceSetDates)
-{
-    Console.WriteLine();
-    Console.WriteLine("  No options selected. Nothing to do.");
     Console.Write("Press any key to exit...");
     Console.ReadLine();
-    return 0;
 }
 
 Console.WriteLine();
-Console.WriteLine("  Selected options:");
-if (preferenceCompress)      Console.WriteLine("    - Compress files");
-if (preferenceSetDates)      Console.WriteLine("    - Set file dates");
-if (preferenceConvertToSetDate)      Console.WriteLine("    - Convert files unreliable for dates");
-
-// ToDo: Verify backup folder created
-
-Console.WriteLine();
-Console.Write("  Ensure you have created a backup. Proceed? (Y/n): ");
-if (!AskYesNo())
+Console.Write("  Ensure you have created a backup! Proceed? (Y/n): ");
+if (ConsoleHelper.AskYesNo() == false)
 {
     Console.WriteLine("  Cancelled.");
     Console.Write("Press any key to exit...");
@@ -90,31 +45,8 @@ if (!AskYesNo())
     return 0;
 }
 
-// 1. Setup the container
-var serviceProvider = new ServiceCollection()
-    .AddSingleton<IDateValidator, DateValidator>()
-    .AddSingleton<IMetadataWriter, MetadataWriter>()
-    .AddSingleton<IOriginalDateReader, OriginalDateReader>()
-    .AddSingleton<IFilenameDateReader, FilenameDateReader>()
-    .AddSingleton<IOldestDateReader, OldestDateReader>()
-    .AddSingleton<IFileDateResolver, FileDateResolver>()
-    .AddSingleton<IFileTypeResolver, FileTypeResolver>()
-    .AddSingleton<IMediaCompressor, MixedFormatCompressor>()
-    .AddSingleton<ImageCompressor>()
-    .AddSingleton<IMediaCompressor, ImageCompressor>(x => x.GetRequiredService<ImageCompressor>())
-    .AddSingleton<IImageCompressor, ImageCompressor>(x => x.GetRequiredService<ImageCompressor>())
-    .AddSingleton<VideoCompressor>()
-    .AddSingleton<IMediaCompressor, VideoCompressor>(x => x.GetRequiredService<VideoCompressor>())
-    .AddSingleton<IVideoCompressor, VideoCompressor>(x => x.GetRequiredService<VideoCompressor>())
-    .AddSingleton<IMediaCompressor, AudioCompressor>()
-    .AddSingleton<ICompressProcessor, CompressProcessor>()
-    .AddSingleton<IDateProcessor, DateProcessor>()
-    .AddSingleton<IArchiveProcessor, ArchiveProcessor>()
-    .AddSingleton<IArchiveRequestFactory, ArchiveRequestFactory>()
-    .AddSingleton<IXmpWriter, XmpWriter>()
-    .BuildServiceProvider();
-
 // Services
+var serviceProvider = ServiceProviderHelper.Create();
 var mediaFileProcessor = serviceProvider.GetRequiredService<IArchiveProcessor>();
 var fileRequestFactory = serviceProvider.GetRequiredService<IArchiveRequestFactory>();
 var logs = serviceProvider.GetRequiredService<IProcessLogger>();
@@ -159,9 +91,10 @@ foreach (var inputPath in args)
         try
         {
             var request = fileRequestFactory.Create(dirPath, file);
-            request.Compress = preferenceCompress;
-            request.SetDates = preferenceSetDates;
-            request.ConvertIfUnreliableForDates = preferenceConvertToSetDate;
+            request.Compress = prefs.Compress;
+            request.ReizeOnCompress = prefs.ResizeOnCompress;
+            request.Standardize = prefs.Standardize;
+            request.SetDates = prefs.SetDates;
             await mediaFileProcessor.ProcessFileAsync(request);
         }
         finally
@@ -184,9 +117,3 @@ Console.Write("Press any key to exit...");
 Console.ReadLine();
 
 return 0;
-
-static bool AskYesNo()
-{
-    var input = Console.ReadLine()?.Trim();
-    return string.IsNullOrEmpty(input) || input.StartsWith("y", StringComparison.OrdinalIgnoreCase);
-}

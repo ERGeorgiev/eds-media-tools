@@ -18,7 +18,7 @@ public interface IArchiveProcessor
 public class ArchiveProcessor(
     ICompressProcessor compressProcessor,
     IDateProcessor dateProcessor,
-    IExtensionRestorer extensionRestorer,
+    IFileExtensionResolver extensionRestorer,
     IProcessLogger processLogger) : IArchiveProcessor
 {
     public async Task ProcessFileAsync(ArchiveRequest request)
@@ -36,7 +36,7 @@ public class ArchiveProcessor(
 
             if (request.Compress)
             {
-                var mode = request.CompressAndResize ? CompressorMode.CompressAndResize : CompressorMode.Compress;
+                var mode = request.ReizeOnCompress ? CompressorMode.CompressAndResize : CompressorMode.Compress;
                 var output = await compressProcessor.ProcessAsync(request.NewPath.Absolute, request.NewPath.Directory, request.ActualFileType, mode);
                 request.NewPath = new(request.NewPath.Root, output);
             }

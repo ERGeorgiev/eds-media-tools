@@ -4,7 +4,7 @@ using TagLib;
 
 namespace EdsMediaArchiver.Services.Resolvers;
 
-public interface IExtensionRestorer
+public interface IFileExtensionResolver
 {
     bool IsSupported(string actualType);
     Task<string> RestoreExtension(string sourcePath, string outputDirectory, string actualType);
@@ -13,7 +13,7 @@ public interface IExtensionRestorer
 /// <summary>
 /// Renames files to ensure their extension matches their actual type.
 /// </summary>
-public class ExtensionResolver : IExtensionRestorer
+public class FileExtensionResolver : IFileExtensionResolver
 {
     public bool IsSupported(string actualType) => ExtensionsTypes.FileTypeToExtension.ContainsKey(actualType);
 
