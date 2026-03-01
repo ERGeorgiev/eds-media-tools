@@ -1,6 +1,6 @@
 # Ed's Media Archiver
 
-A Windows tool that prepares your media files for long-term storage. Drop files or folders onto the `.exe` and choose how to process them - compress, standardize, fix dates, or all of the above.
+A Windows tool that prepares your media files for long-term storage. Drop files or folders onto the `.exe` and choose how to process them - compress, standardize, fix dates, or all of the above. This app processes the dropped files directly and often will delete them as it creates new ones, so **BACKUP IS VERY IMPORTANT!**
 
 ![Demo](media/demo.png)
 
