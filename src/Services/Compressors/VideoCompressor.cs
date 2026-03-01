@@ -42,12 +42,9 @@ public class VideoCompressor : IVideoCompressor
                 if (videoStream != null)
                 {
                     bool isSmallEnough = videoStream.Width <= 1920 && videoStream.Height <= 1920;
-
+                    bool isModernCodec = videoStream.CodecName == "h264" || videoStream.CodecName == "hevc";
                     double bitrateKbps = analysis.Format.BitRate / 1000.0;
                     bool isLowBitrate = bitrateKbps <= 5000;
-
-                    bool isModernCodec = videoStream.CodecName == "h264" || videoStream.CodecName == "hevc";
-
 
                     if (isSmallEnough && isLowBitrate && isModernCodec)
                     {
@@ -74,6 +71,7 @@ public class VideoCompressor : IVideoCompressor
                             .WithAudioBitrate(128)
                             .WithCustomArgument("-pix_fmt yuv420p")
                             .WithCustomArgument("-map_metadata 0")
+                            .WithCustomArgument("-profile:v main")
                             .WithCustomArgument("-movflags +faststart+use_metadata_tags");
                         if (compressorMode == CompressorMode.CompressAndResize)
                         {
@@ -103,6 +101,7 @@ public class VideoCompressor : IVideoCompressor
                         // Preserve Color Fidelity, "yuv420p" is the safe standard.
                         .WithCustomArgument("-pix_fmt yuv420p")
                         .WithCustomArgument("-map_metadata 0")
+                        .WithCustomArgument("-profile:v main")
                         .WithCustomArgument("-movflags +faststart+use_metadata_tags")
                         // Ensure current dimensions are even (required for yuv420p)
                         .WithCustomArgument("-vf \"scale='trunc(iw/2)*2:trunc(ih/2)*2'\""))
