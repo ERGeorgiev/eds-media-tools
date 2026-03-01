@@ -81,6 +81,11 @@ public class VideoCompressor : IVideoCompressor
                             // The '-2' ensures the resulting height is always an even number (required for x264).
                             options.WithCustomArgument("-vf \"scale='min(1920,iw)':-2\"");
                         }
+                        else
+                        {
+                            // Ensure current dimensions are even (required for yuv420p)
+                            options.WithCustomArgument("-vf \"scale='trunc(iw/2)*2:trunc(ih/2)*2'\"");
+                        }
                     })
                     .ProcessAsynchronously();
                 break;
@@ -98,7 +103,9 @@ public class VideoCompressor : IVideoCompressor
                         // Preserve Color Fidelity, "yuv420p" is the safe standard.
                         .WithCustomArgument("-pix_fmt yuv420p")
                         .WithCustomArgument("-map_metadata 0")
-                        .WithCustomArgument("-movflags use_metadata_tags"))
+                        .WithCustomArgument("-movflags use_metadata_tags")
+                        // Ensure current dimensions are even (required for yuv420p)
+                        .WithCustomArgument("-vf \"scale='trunc(iw/2)*2:trunc(ih/2)*2'\""))
                     .ProcessAsynchronously();
                 break;
             default:

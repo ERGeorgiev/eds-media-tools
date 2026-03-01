@@ -83,20 +83,15 @@ public class ProcessLogger : IProcessLogger
         var skipped = _logs.Where(r => r.Result == Result.SKIPPED).ToList();
         var errored = _logs.Where(r => r.Result == Result.ERROR).ToList();
 
-        if (skipped.Count > 0)
-        {
-            Console.WriteLine();
-            Console.WriteLine("  Skipped Operations:");
-            foreach (var l in skipped)
-                PrintLog(l);
-        }
-
         if (errored.Count > 0)
         {
             Console.WriteLine();
             Console.WriteLine("  Errored Operations:");
             foreach (var l in errored)
+            {
+                Console.WriteLine($"FILE: {l.FilePath}");
                 PrintLog(l);
+            }
         }
 
         Console.WriteLine();
