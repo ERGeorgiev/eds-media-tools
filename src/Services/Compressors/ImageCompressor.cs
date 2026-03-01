@@ -28,7 +28,7 @@ public class ImageCompressor(IFileDateResolver fileDateResolver) : IImageCompres
         var outputPath = Path.Combine(outputDirectory, Path.GetFileNameWithoutExtension(sourcePath) + outputExtension);
         if (outputExtension == sourceExtension && compressorMode == CompressorMode.Convert)
         {
-            return sourceExtension; // source already .jpg
+            return sourcePath; // source already .jpg
         }
 
         using var image = new MagickImage();

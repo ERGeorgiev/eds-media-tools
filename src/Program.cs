@@ -6,8 +6,6 @@ using Microsoft.Extensions.DependencyInjection;
 using System.Diagnostics;
 using System.Reflection;
 
-//ToDo: Gifs, Transparent PNGs, Re-compressing JPGs (cases where its wanted and not)
-
 Console.WriteLine();
 Console.WriteLine("================================================");
 Console.WriteLine($"  Ed's Media Archiver v{Assembly.GetEntryAssembly()?.GetName().Version?.ToString(2)}");
@@ -92,7 +90,7 @@ foreach (var inputPath in args)
     var printLock = new object();
     var options = new ParallelOptions
     {
-        MaxDegreeOfParallelism = 10
+        MaxDegreeOfParallelism = 1
     };
     await Parallel.ForEachAsync(files, options, async (file, token) =>
     {
