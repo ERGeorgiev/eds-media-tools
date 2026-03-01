@@ -92,7 +92,7 @@ public static class MediaType
     {
         Asf, Avi, Amv, Dv, Dvr_ms, F4V, Flv, Gxf, Lrv,
         M2Ts, M4V, Mj2, Mjpeg, Mkv, Mod, Mov, Mp4, Mpeg,
-        Mpegts, Mpg, Mts, Mvi, Mxf, Ogv, Rm, Rmvb, ThreeG2,
+        Mpegts, Mpg, Mts, Mvi, Mxf, Ogv, QuickTime, Rm, Rmvb, ThreeG2,
         ThreeGp, Tod, Ts, Vob, WebM, Wmv, Wtv,
     };
 

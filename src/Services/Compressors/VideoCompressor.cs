@@ -17,8 +17,8 @@ public class VideoCompressor(IFileDateResolver fileDateResolver) : IVideoCompres
     {
         MediaType.Asf, MediaType.Avi, MediaType.Amv, MediaType.Dv, MediaType.Dvr_ms, MediaType.F4V, MediaType.Flv, MediaType.Gxf, MediaType.Lrv,
         MediaType.M2Ts, MediaType.M4V, MediaType.Mj2, MediaType.Mjpeg, MediaType.Mkv, MediaType.Mod, MediaType.Mov, MediaType.Mp4, MediaType.Mpeg,
-        MediaType.Mpegts, MediaType.Mpg, MediaType.Mts, MediaType.Mvi, MediaType.Mxf, MediaType.Ogv, MediaType.Rm, MediaType.Rmvb, MediaType.ThreeG2,
-        MediaType.ThreeGp, MediaType.Tod, MediaType.Ts, MediaType.Vob, MediaType.Wmv, MediaType.Wtv,
+        MediaType.Mpegts, MediaType.Mpg, MediaType.Mts, MediaType.Mvi, MediaType.Mxf, MediaType.Ogv, MediaType.QuickTime, MediaType.Rm, MediaType.Rmvb, 
+        MediaType.ThreeG2, MediaType.ThreeGp, MediaType.Tod, MediaType.Ts, MediaType.Vob, MediaType.Wmv, MediaType.Wtv
         // Any other types may be adversely affected by the current compressor, like WebM/AV1 that is
         // more efficient than the compressor's output MP4/H265.
         // In terms of conversion/standardization for DateWrite, it's less of an issue for videos (few/none support exif anyway)

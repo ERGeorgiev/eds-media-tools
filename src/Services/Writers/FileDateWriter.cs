@@ -24,12 +24,20 @@ public class FileDateWriter(
 
     private async Task WriteDateForTypeAsync(string filePath, string actualType, DateTimeOffset date)
     {
-        if (MediaType.SupportedImageTypes.Contains(actualType))
-            await metadataWriter.WriteImageDatesAsync(filePath, date);
-        else if (MediaType.SupportedVideoTypes.Contains(actualType))
-            metadataWriter.WriteVideoDates(filePath, date);
-        else if (MediaType.SupportedAudioTypes.Contains(actualType))
-            metadataWriter.WriteAudioDates(filePath, date);
+        try
+        {
+            if (MediaType.SupportedImageTypes.Contains(actualType))
+                await metadataWriter.WriteImageDatesAsync(filePath, date);
+            else if (MediaType.SupportedVideoTypes.Contains(actualType))
+                metadataWriter.WriteVideoDates(filePath, date);
+            else if (MediaType.SupportedAudioTypes.Contains(actualType))
+                metadataWriter.WriteAudioDates(filePath, date);
+        }
+        catch
+        {
+            // ToDo: Skip exception, as some formats are not supported by the code, but not all have been tested yet,
+            // and its not critical as system dates and ffmpeg can handle it instead.
+        }
 
         File.SetCreationTime(filePath, date.LocalDateTime);
         File.SetLastWriteTime(filePath, date.LocalDateTime);
