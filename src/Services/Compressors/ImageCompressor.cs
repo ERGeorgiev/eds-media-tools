@@ -1,5 +1,6 @@
 using EdsMediaArchiver.Definitions;
 using EdsMediaArchiver.Helpers;
+using EdsMediaArchiver.Services.Resolvers;
 using ImageMagick;
 
 namespace EdsMediaArchiver.Services.Compressors;
@@ -9,7 +10,7 @@ public interface IImageCompressor : IMediaCompressor { }
 /// <summary>
 /// Compresses XMP-only image formats (WebP, BMP, TIFF) to JPG.
 /// </summary>
-public class ImageCompressor : IImageCompressor
+public class ImageCompressor(IFileDateResolver fileDateResolver) : IImageCompressor
 {
     public static readonly HashSet<string> SupportedTypes = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -43,6 +44,7 @@ public class ImageCompressor : IImageCompressor
             }
         }
 
+        DateTimeOffset? setDate = fileDateResolver.ResolveBestDate(sourcePath);
         image.AutoOrient();
         switch (compressorMode)
         {
@@ -72,8 +74,33 @@ public class ImageCompressor : IImageCompressor
                 throw new NotSupportedException($"Mode {compressorMode} not supported");
         }
 
+        if (setDate.HasValue)
+        {
+            var exifDate = setDate.Value.LocalDateTime.ToString("yyyy:MM:dd HH:mm:ss");
+            string exifOffset = setDate.Value.ToString("zzz");
+            var profile = image.GetExifProfile() ?? new ExifProfile();
+
+            profile.SetValue(ExifTag.DateTimeOriginal, exifDate);
+            profile.SetValue(ExifTag.DateTimeDigitized, exifDate);
+            profile.SetValue(ExifTag.DateTime, exifDate);
+            profile.SetValue(ExifTag.OffsetTimeOriginal, exifOffset);
+            profile.SetValue(ExifTag.OffsetTimeDigitized, exifOffset);
+            profile.SetValue(ExifTag.OffsetTime, exifOffset);
+
+            image.SetProfile(profile);
+
+            // OPTIONAL: Update IPTC or XMP if your archiver needs to be super thorough
+            image.SetAttribute("exif:DateTimeOriginal", exifDate);
+        }
+
         outputPath = FileHelper.GetUniqueFilePath(outputPath);
         await image.WriteAsync(outputPath, MagickFormat.Jpeg);
+        if (setDate.HasValue)
+        {
+            File.SetCreationTime(outputPath, setDate.Value.LocalDateTime);
+            File.SetLastWriteTime(outputPath, setDate.Value.LocalDateTime);
+        }
+
         return outputPath;
     }
 }

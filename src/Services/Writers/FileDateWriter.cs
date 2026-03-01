@@ -5,25 +5,21 @@ namespace EdsMediaArchiver.Services.Writers;
 
 public interface IFileDateWriter
 {
-    /// <summary>
-    /// Writes date metadata and sets filesystem Created/Modified dates.
-    /// Determines the current file type from the file path (handles post-compression type changes).
-    /// Skips if no valid date is available.
     /// </summary>
-    Task<DateTimeOffset?> WriteDateToFileAsync(string filePath, string actualType, DateTimeOffset originDate);
+    Task<DateTimeOffset?> WriteDateToFileAsync(string filePath, string fileType, DateTimeOffset date);
 }
 
 public class FileDateWriter(
     IMetadataWriter metadataWriter, 
     IFileTypeResolver fileTypeResolver) : IFileDateWriter
 {
-    public async Task<DateTimeOffset?> WriteDateToFileAsync(string filePath, string actualType, DateTimeOffset originDate)
+    public async Task<DateTimeOffset?> WriteDateToFileAsync(string filePath, string fileType, DateTimeOffset date)
     {
         var currentType = fileTypeResolver.GetActualFileType(filePath);
 
-        await WriteDateForTypeAsync(filePath, currentType, originDate);
+        await WriteDateForTypeAsync(filePath, currentType, date);
 
-        return originDate;
+        return date;
     }
 
     private async Task WriteDateForTypeAsync(string filePath, string actualType, DateTimeOffset date)

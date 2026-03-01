@@ -1,7 +1,9 @@
 using EdsMediaArchiver.Definitions;
 using EdsMediaArchiver.Helpers;
+using EdsMediaArchiver.Services.Resolvers;
 using FFMpegCore;
 using FFMpegCore.Enums;
+using XmpCore.Options;
 
 namespace EdsMediaArchiver.Services.Compressors;
 
@@ -10,7 +12,7 @@ public interface IVideoCompressor : IMediaCompressor { }
 /// <summary>
 /// Compresses video formats to MP4 (H.264 + AAC).
 /// </summary>
-public class VideoCompressor : IVideoCompressor
+public class VideoCompressor(IFileDateResolver fileDateResolver) : IVideoCompressor
 {
     public static readonly HashSet<string> SupportedTypes = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -54,6 +56,8 @@ public class VideoCompressor : IVideoCompressor
             }
         }
 
+        DateTimeOffset? setDate = fileDateResolver.ResolveBestDate(sourcePath);
+        string ffmpegFormattedSetDate = setDate == null ? "" : setDate.Value.UtcDateTime.ToString("yyyy-MM-ddTHH:mm:ssZ"); // ISO 8601
         outputPath = FileHelper.GetUniqueFilePath(outputPath);
         switch (compressorMode)
         {
@@ -84,31 +88,51 @@ public class VideoCompressor : IVideoCompressor
                             // Ensure current dimensions are even (required for yuv420p)
                             options.WithCustomArgument("-vf \"scale='trunc(iw/2)*2:trunc(ih/2)*2'\"");
                         }
+                        if (setDate.HasValue)
+                        {
+                            options
+                                .WithCustomArgument($"-metadata creation_time=\"{ffmpegFormattedSetDate}\"")
+                                .WithCustomArgument($"-metadata date=\"{ffmpegFormattedSetDate}\"")
+                                .WithCustomArgument($"-metadata datetime=\"{ffmpegFormattedSetDate}\"");
+                        }
                     })
                     .ProcessAsynchronously();
                 break;
             case CompressorMode.Convert:
                 await FFMpegArguments
                     .FromFileInput(sourcePath)
-                    .OutputToFile(outputPath, overwrite: false, options => options
-                        .WithVideoCodec("libx264")
-                        // CRF 17 for "Visually Lossless"
-                        .WithConstantRateFactor(17)
-                        .WithSpeedPreset(Speed.Slow)
-                        // High-Fidelity Audio
-                        .WithAudioCodec("aac")
-                        .WithAudioBitrate(192)
-                        // Preserve Color Fidelity, "yuv420p" is the safe standard.
-                        .WithCustomArgument("-pix_fmt yuv420p")
-                        .WithCustomArgument("-map_metadata 0")
-                        .WithCustomArgument("-profile:v main")
-                        .WithCustomArgument("-movflags +faststart+use_metadata_tags")
-                        // Ensure current dimensions are even (required for yuv420p)
-                        .WithCustomArgument("-vf \"scale='trunc(iw/2)*2:trunc(ih/2)*2'\""))
+                    .OutputToFile(outputPath, overwrite: false, options =>
+                    {
+                        options
+                            .WithVideoCodec("libx264")
+                            // CRF 17 for "Visually Lossless"
+                            .WithConstantRateFactor(17)
+                            .WithSpeedPreset(Speed.Slow)
+                            .WithAudioCodec("aac")
+                            .WithAudioBitrate(192)
+                            .WithCustomArgument("-pix_fmt yuv420p")
+                            .WithCustomArgument("-map_metadata 0")
+                            .WithCustomArgument("-profile:v main")
+                            .WithCustomArgument("-movflags +faststart+use_metadata_tags")
+                            .WithCustomArgument("-vf \"scale='trunc(iw/2)*2:trunc(ih/2)*2'\"");
+                        if (setDate.HasValue)
+                        {
+                            options
+                                .WithCustomArgument($"-metadata creation_time=\"{ffmpegFormattedSetDate}\"")
+                                .WithCustomArgument($"-metadata date=\"{ffmpegFormattedSetDate}\"")
+                                .WithCustomArgument($"-metadata datetime=\"{ffmpegFormattedSetDate}\"");
+                        }
+                    })
                     .ProcessAsynchronously();
                 break;
             default:
                 throw new NotSupportedException($"Mode {compressorMode} not supported");
+        }
+
+        if (setDate.HasValue)
+        {
+            File.SetCreationTime(outputPath, setDate.Value.LocalDateTime);
+            File.SetLastWriteTime(outputPath, setDate.Value.LocalDateTime);
         }
 
         return outputPath;

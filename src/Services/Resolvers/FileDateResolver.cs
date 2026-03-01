@@ -1,12 +1,13 @@
 using EdsMediaArchiver.Services.FileDateReaders;
+using MetadataExtractor;
 
 namespace EdsMediaArchiver.Services.Resolvers;
 
-// ToDo: Read mmetadata OffsetTime to get "+05:00" or something like that and take it into consideration
+// ToDo: Read mmetadata OffsetTime to get "+05:00" and take it into consideration
 
 public interface IFileDateResolver
 {
-    DateTimeOffset? ResolveBestDate(string filePath, IEnumerable<MetadataExtractor.Directory> fileDirectories);
+    DateTimeOffset? ResolveBestDate(string filePath);
 }
 
 /// <summary>
@@ -19,11 +20,12 @@ public partial class FileDateResolver(
 {
     private readonly IEnumerable<IFileDateReader> _dateReaders = [originalDateReader, filenameDateReader, oldestDateReader];
 
-    public DateTimeOffset? ResolveBestDate(string filePath, IEnumerable<MetadataExtractor.Directory> fileDirectories)
+    public DateTimeOffset? ResolveBestDate(string filePath)
     {
+        var metadataDirectories = ImageMetadataReader.ReadMetadata(filePath);
         foreach (var reader in _dateReaders)
         {
-            var date = reader.Read(filePath, fileDirectories);
+            var date = reader.Read(filePath, metadataDirectories);
             if (date.HasValue)
                 return date;
         }

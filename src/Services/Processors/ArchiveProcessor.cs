@@ -37,8 +37,7 @@ public class ArchiveProcessor(
             DateTimeOffset? setDate = null;
             if (request.SetDates)
             {
-                var metadataDirectories = ImageMetadataReader.ReadMetadata(request.OriginalPath.Absolute);
-                setDate = fileDateResolver.ResolveBestDate(request.OriginalPath.Absolute, metadataDirectories);
+                setDate = fileDateResolver.ResolveBestDate(request.OriginalPath.Absolute);
             }
 
             if (request.Compress)
