@@ -2,7 +2,7 @@
 
 A Windows tool that prepares your media files for long-term storage. Drop files or folders onto the `.exe` and choose how to process them - compress, standardize, fix dates, or all of the above.
 
-[Demo](media/demo.png)
+![Demo](media/demo.png)
 
 ## Features
 
