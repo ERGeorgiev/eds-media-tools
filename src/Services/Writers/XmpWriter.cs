@@ -51,7 +51,17 @@ public class XmpWriter : IXmpWriter
         try
         {
             using var ms = new MemoryStream(profile.ToByteArray());
-            return XDocument.Load(ms);
+            var doc = XDocument.Load(ms);
+
+            // Strip any existing xpacket processing instructions to avoid
+            // double-wrapping when WrapWithXpacket is called later.
+            doc.Nodes()
+                .OfType<XProcessingInstruction>()
+                .Where(pi => pi.Target == "xpacket")
+                .ToList()
+                .ForEach(pi => pi.Remove());
+
+            return doc;
         }
         catch
         {
