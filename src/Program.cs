@@ -115,8 +115,9 @@ foreach (var inputPath in args)
 
     Console.WriteLine();
     Console.WriteLine($"  Finished Processing: {inputPath}");
-    logs.PrintSummary();
 }
+
+logs.PrintSummary();
 
 Console.WriteLine();
 Console.WriteLine("================================================");

@@ -10,6 +10,7 @@ public interface IProcessLogger
     void Log(Operation operation, Result result, string filePath, string message);
     void PrintLogs(string filePath);
     void PrintSummary();
+    void Clear();
 
     public enum Operation
     {
@@ -36,6 +37,12 @@ public class ProcessLogger : IProcessLogger
     public readonly ConcurrentDictionary<string, List<ProcessLog>> _logsPerFile = [];
 
     public IEnumerable<ProcessLog> Logs => _logs;
+
+    public void Clear()
+    {
+        _logs.Clear();
+        _logsPerFile.Clear();
+    }
 
     public void Log(Operation operation, Result result, string filePath, string message)
     {

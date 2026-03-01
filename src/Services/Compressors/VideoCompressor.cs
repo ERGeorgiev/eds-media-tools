@@ -79,7 +79,7 @@ public class VideoCompressor : IVideoCompressor
                         {
                             // If input width (iw) is > 1920, scale width to 1920 and height proportionally (-2).
                             // The '-2' ensures the resulting height is always an even number (required for x264).
-                            options.WithCustomArgument("-vf \"scale='min(1920,iw)':-2\"");
+                            options.WithCustomArgument("-vf \"scale='trunc(min(1920,iw)/2)*2':-2\"");
                         }
                         else
                         {
