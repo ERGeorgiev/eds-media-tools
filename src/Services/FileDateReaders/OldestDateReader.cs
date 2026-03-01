@@ -65,16 +65,13 @@ public partial class OldestDateReader(IDateValidator dateValidator) : IOldestDat
             catch { /* Skip corrupted directory */ }
         }
 
-        if (dates.Count == 0)
+        try
         {
-            try
-            {
-                var fileInfo = new FileInfo(filePath);
-                TryAdd(fileInfo.CreationTime);
-                TryAdd(fileInfo.LastWriteTime);
-            }
-            catch { }
+            var fileInfo = new FileInfo(filePath);
+            TryAdd(fileInfo.CreationTime);
+            TryAdd(fileInfo.LastWriteTime);
         }
+        catch { }
 
         return dates.Count > 0 ? dates.Min() : null;
 

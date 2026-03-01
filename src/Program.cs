@@ -16,7 +16,11 @@ Console.WriteLine("================================================");
 Console.WriteLine();
 
 if (Debugger.IsAttached)
-    args = [$"{Path.Combine(Directory.GetCurrentDirectory(), "TestData")}", $"{Path.Combine(Directory.GetCurrentDirectory(), "TestData2")}"];
+{
+    var currentDirectory = new DirectoryInfo(Directory.GetCurrentDirectory());
+    var solutionDir = currentDirectory.Parent!.Parent!.Parent!.FullName;
+    args = [$"{Path.Combine(solutionDir, "TestData")}", $"{Path.Combine(solutionDir, "TestData2")}"];
+}
 
 // Validate input paths
 if (args.Length == 0)

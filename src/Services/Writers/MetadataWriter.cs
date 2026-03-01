@@ -43,14 +43,32 @@ public class MetadataWriter(IXmpWriter xmpWriter) : IMetadataWriter
         using var file = TagLib.File.Create(filePath);
         file.Tag.DateTagged = date.LocalDateTime;
         file.Tag.Year = (uint)date.Year;
+        
+        if (file is TagLib.Ogg.File oggFile)
+        {
+            oggFile.Tag.Year = (uint)date.Year;
+            oggFile.Tag.DateTagged = date.LocalDateTime;
+        }
+
         file.Save();
     }
 
     public void WriteAudioDates(string filePath, DateTimeOffset date)
     {
         using var file = TagLib.File.Create(filePath);
+
         file.Tag.DateTagged = date.LocalDateTime;
         file.Tag.Year = (uint)date.Year;
+
+        if (file is TagLib.Mpeg4.File mp4File)
+        {
+            mp4File.Tag.DateTagged = date.UtcDateTime;
+        }
+        else if (file is TagLib.Matroska.File mkvFile)
+        {
+            mkvFile.Tag.DateTagged = date.UtcDateTime;
+        }
+
         file.Save();
     }
 }
