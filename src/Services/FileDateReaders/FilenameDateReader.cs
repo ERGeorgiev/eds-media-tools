@@ -66,10 +66,14 @@ public partial class FilenameDateReader(IDateValidator dateValidator) : IFilenam
         DateOnlyPattern()
     };
 
-    [GeneratedRegex(@"(?:^|[\s_\-\.\(~])(?<y>20\d{2})[_\-\.]?(?<m>[01]\d)[_\-\.]?(?<d>[0-3]\d)[_\-\.]?(?<H>[0-2]\d)[_\-\.]?(?<Min>[0-5]\d)[_\-\.]?(?<Sec>[0-5]\d)(?:$|[\s_\-\.\(\)~])", RegexOptions.Compiled)]
+    // Matches Date + Time (Hours, Minutes, and optional Seconds)
+    // Handles: 2012-01-01 06-00, 20120101060005, a2012.01.01_06:00aa
+    [GeneratedRegex(@"(?<!\d)(?<y>20\d{2})[_\-\.\s]?(?<m>[01]\d)[_\-\.\s]?(?<d>[0-3]\d)[_\-\.\s]?(?<H>[0-2]\d)[_\-\.\s]?(?<Min>[0-5]\d)([_\-\.\s]?(?<Sec>[0-5]\d))?(?!\d)", RegexOptions.Compiled)]
     private static partial Regex DateTimePattern();
 
-    [GeneratedRegex(@"(?:^|[\s_\-\.\(~])(?<y>20\d{2})[_\-\.]?(?<m>[01]\d)[_\-\.]?(?<d>[0-3]\d)(?:$|[\s_\-\.\(\)~])", RegexOptions.Compiled)]
+    // Matches Date Only
+    // Handles: 2012-01-01, 20120101, b2012_01_01a
+    [GeneratedRegex(@"(?<!\d)(?<y>20\d{2})[_\-\.\s]?(?<m>[01]\d)[_\-\.\s]?(?<d>[0-3]\d)(?!\d)", RegexOptions.Compiled)]
     private static partial Regex DateOnlyPattern();
 
     [GeneratedRegex(@"(?<!\d)(\d{10})(?!\d)", RegexOptions.Compiled)]
