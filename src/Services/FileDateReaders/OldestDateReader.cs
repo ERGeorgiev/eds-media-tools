@@ -55,6 +55,10 @@ public partial class OldestDateReader(IDateValidator dateValidator) : IOldestDat
                             TryAdd(trackMod);
                         break;
 
+                    case QuickTimeMetadataHeaderDirectory metaHeader:
+                        TryAdd(TryGetDate(metaHeader, QuickTimeMetadataHeaderDirectory.TagCreationDate));
+                        break;
+
                     case XmpDirectory xmp:
                         TryAdd(GetXmpDate(xmp, "http://ns.adobe.com/xap/1.0/", "CreateDate"));
                         TryAdd(GetXmpDate(xmp, "http://ns.adobe.com/xap/1.0/", "ModifyDate"));
