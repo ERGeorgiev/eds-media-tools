@@ -39,21 +39,26 @@ public class VideoCompressor(IFileDateResolver fileDateResolver) : IVideoCompres
             }
             else
             {
-                // Prevent compression of already compressed files.
-                var analysis = await FFProbe.AnalyseAsync(sourcePath);
-                var videoStream = analysis.VideoStreams.FirstOrDefault();
-                if (videoStream != null)
-                {
-                    bool isSmallEnough = videoStream.Width <= 1920 && videoStream.Height <= 1920;
-                    bool isModernCodec = videoStream.CodecName == "h264" || videoStream.CodecName == "hevc";
-                    double bitrateKbps = analysis.Format.BitRate / 1000.0;
-                    bool isLowBitrate = bitrateKbps <= 10000;
+                // The code below prevents re-compressing of compressed files.
+                // It's commented out, as currently this solution relies on ffmpeg to date .mp4, so compression can be used
+                // as a way to date them, otherwise there's no way. MvdhDateWriter needs to be finished to enable
+                // writing to videos.
 
-                    if (isSmallEnough && isLowBitrate && isModernCodec)
-                    {
-                        return sourcePath; // Already compressed
-                    }
-                }
+                //// Prevent compression of already compressed files.
+                //var analysis = await FFProbe.AnalyseAsync(sourcePath);
+                //var videoStream = analysis.VideoStreams.FirstOrDefault();
+                //if (videoStream != null)
+                //{
+                //    bool isSmallEnough = videoStream.Width <= 1920 && videoStream.Height <= 1920;
+                //    bool isModernCodec = videoStream.CodecName == "h264" || videoStream.CodecName == "hevc";
+                //    double bitrateKbps = analysis.Format.BitRate / 1000.0;
+                //    bool isLowBitrate = bitrateKbps <= 10000;
+
+                //    if (isSmallEnough && isLowBitrate && isModernCodec)
+                //    {
+                //        return sourcePath; // Already compressed
+                //    }
+                //}
             }
         }
 
