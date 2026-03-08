@@ -21,30 +21,26 @@ public class CompressProcessor(IEnumerable<IMediaCompressor> compressors, IProce
         {
             var outputPath = await compressor.CompressAsync(sourcePath, outputDirectory, fileType, compressorMode);
 
-            // Delete the original file (compressor creates a new one)
             if (string.Equals(sourcePath, outputPath, StringComparison.OrdinalIgnoreCase))
             {
-                if (compressorMode == CompressorMode.Convert)
-                {
-                    processLogger.Log(IProcessLogger.Operation.Convert, IProcessLogger.Result.SKIPPED, sourcePath, $"Not necessary.");
-                }
-                else
-                {
-                    processLogger.Log(IProcessLogger.Operation.Compress, IProcessLogger.Result.SUCCESS, sourcePath, "(May have been skipped if already compressed)");
-                }
+                // Output == Input, so SKIPPED is the only possible case.
+                processLogger.Log(IProcessLogger.Operation.Convert, IProcessLogger.Result.SKIPPED, sourcePath, "");
                 return outputPath;
-            }
-
-            File.Delete(sourcePath);
-            if (compressorMode == CompressorMode.Convert)
-            {
-                processLogger.Log(IProcessLogger.Operation.Convert, IProcessLogger.Result.SUCCESS, sourcePath, $"{outputPath,-60}");
             }
             else
             {
-                processLogger.Log(IProcessLogger.Operation.Compress, IProcessLogger.Result.SUCCESS, sourcePath, $"{outputPath,-60}");
+                File.Delete(sourcePath);
+                File.Move(outputPath, sourcePath, overwrite: true);
+                if (compressorMode == CompressorMode.Convert)
+                {
+                    processLogger.Log(IProcessLogger.Operation.Convert, IProcessLogger.Result.SUCCESS, sourcePath, $"{outputPath,-60}");
+                }
+                else
+                {
+                    processLogger.Log(IProcessLogger.Operation.Compress, IProcessLogger.Result.SUCCESS, sourcePath, $"{outputPath,-60}");
+                }
+                return outputPath;
             }
-            return outputPath;
         }
         return sourcePath;
     }
