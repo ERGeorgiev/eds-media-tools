@@ -1,5 +1,6 @@
 using EdsMediaArchiver.Definitions;
 using EdsMediaArchiver.Helpers;
+using EdsMediaArchiver.Models;
 using FFMpegCore;
 using FFMpegCore.Enums;
 
@@ -10,7 +11,7 @@ public interface IVideoCompressor : IMediaCompressor { }
 /// <summary>
 /// Compresses video formats to MP4 (H.264 + AAC).
 /// </summary>
-public class VideoCompressor(IExifToolService exif) : IVideoCompressor
+public class VideoCompressor(IExifToolService exif, IUserPreferences preferences) : IVideoCompressor
 {
     public static readonly HashSet<string> SupportedTypes = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -25,14 +26,14 @@ public class VideoCompressor(IExifToolService exif) : IVideoCompressor
 
     public bool IsSupported(string actualType) => SupportedTypes.Contains(actualType);
 
-    public async Task<string> CompressAsync(string sourcePath, string outputDirectory, string fileType, CompressorMode compressorMode)
+    public async Task<string> CompressAsync(string sourcePath, string outputDirectory, string fileType)
     {
         var outputExtension = ".mp4";
         var sourceExtension = Path.GetExtension(sourcePath);
         var outputPath = Path.Combine(outputDirectory, Path.GetFileNameWithoutExtension(sourcePath) + outputExtension);
         if (outputExtension.Equals(sourceExtension, StringComparison.OrdinalIgnoreCase))
         {
-            if (compressorMode == CompressorMode.Convert)
+            if (preferences.Standardize)
             {
                 return sourcePath;
             }
@@ -57,53 +58,49 @@ public class VideoCompressor(IExifToolService exif) : IVideoCompressor
         }
 
         outputPath = FileHelper.GetUniqueFilePath(outputPath);
-        switch (compressorMode)
+        if (preferences.Standardize)
         {
-            case CompressorMode.CompressAndResize:
-            case CompressorMode.Compress:
-                await FFMpegArguments
-                    .FromFileInput(sourcePath)
-                    .OutputToFile(outputPath, overwrite: false, options =>
+            await FFMpegArguments
+                .FromFileInput(sourcePath)
+                .OutputToFile(outputPath, overwrite: false, options =>
+                {
+                    options
+                        .WithVideoCodec("copy")
+                        .WithAudioCodec("copy")
+                        .WithCustomArgument("-map_metadata 0")
+                        .WithCustomArgument("-movflags +faststart");
+                })
+                .ProcessAsynchronously();
+        }
+        else
+        {
+            await FFMpegArguments
+                .FromFileInput(sourcePath)
+                .OutputToFile(outputPath, overwrite: false, options =>
+                {
+                    options
+                        .WithVideoCodec("libx264")
+                        .WithConstantRateFactor(23)
+                        .WithSpeedPreset(Speed.Slow)
+                        .WithAudioCodec("aac")
+                        .WithAudioBitrate(128)
+                        .WithCustomArgument("-pix_fmt yuv420p")
+                        .WithCustomArgument("-map_metadata 0")
+                        .WithCustomArgument("-profile:v main")
+                        .WithCustomArgument("-color_range 1") // Forces limited range
+                        .WithCustomArgument("-movflags +faststart");
+                    if (preferences.ResizeOnCompress)
                     {
-                        options
-                            .WithVideoCodec("libx264")
-                            .WithConstantRateFactor(23)
-                            .WithSpeedPreset(Speed.Slow)
-                            .WithAudioCodec("aac")
-                            .WithAudioBitrate(128)
-                            .WithCustomArgument("-pix_fmt yuv420p")
-                            .WithCustomArgument("-map_metadata 0")
-                            .WithCustomArgument("-profile:v main")
-                            .WithCustomArgument("-color_range 1") // Forces limited range
-                            .WithCustomArgument("-movflags +faststart"); 
-                        if (compressorMode == CompressorMode.CompressAndResize)
-                        {
-                            // If width/height is > 1920, scale width to 1920
-                            options.WithCustomArgument("-vf \"scale=1920:1920:force_original_aspect_ratio=decrease:force_divisible_by=2\"");
-                        }
-                        else
-                        {
-                            // Ensure current dimensions are even (required for yuv420p)
-                            options.WithCustomArgument("-vf \"scale='trunc(iw/2)*2:trunc(ih/2)*2'\"");
-                        }
-                    })
-                    .ProcessAsynchronously();
-                break;
-            case CompressorMode.Convert:
-                await FFMpegArguments
-                    .FromFileInput(sourcePath)
-                    .OutputToFile(outputPath, overwrite: false, options =>
+                        // If width/height is > 1920, scale width to 1920
+                        options.WithCustomArgument("-vf \"scale=1920:1920:force_original_aspect_ratio=decrease:force_divisible_by=2\"");
+                    }
+                    else
                     {
-                        options
-                            .WithVideoCodec("copy")
-                            .WithAudioCodec("copy")
-                            .WithCustomArgument("-map_metadata 0")
-                            .WithCustomArgument("-movflags +faststart");
-                    })
-                    .ProcessAsynchronously();
-                break;
-            default:
-                throw new NotSupportedException($"Mode {compressorMode} not supported");
+                        // Ensure current dimensions are even (required for yuv420p)
+                        options.WithCustomArgument("-vf \"scale='trunc(iw/2)*2:trunc(ih/2)*2'\"");
+                    }
+                })
+                .ProcessAsynchronously();
         }
 
         await exif.CopyMetadata(sourcePath, outputPath);

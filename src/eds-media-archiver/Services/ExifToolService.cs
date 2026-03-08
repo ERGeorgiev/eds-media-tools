@@ -6,7 +6,6 @@ namespace EdsMediaArchiver.Services;
 public interface IExifToolService
 {
     Task CopyMetadata(string sourceFilePath, string destinationFilePath);
-    Task WriteDatesAsync(string filePath, DateTimeOffset date);
 }
 
 public class ExifToolService : IExifToolService
@@ -26,50 +25,6 @@ public class ExifToolService : IExifToolService
 
         await ExecuteAsync(args);
     }
-
-    public async Task WriteDatesAsync(string filePath, DateTimeOffset date)
-    {
-        var exifDate = date.ToString("yyyy:MM:dd HH:mm:ss");
-        var xmpDate = date.ToString("yyyy-MM-ddTHH:mm:ssK");
-        var utcDate = date.UtcDateTime.ToString("yyyy:MM:dd HH:mm:ss");
-        var pngDate = date.UtcDateTime.ToString("yyyy-MM-ddTHH:mm:ssZ");
-
-        var args = new List<string>
-        {
-            "-f",
-            "-m",
-            "-overwrite_original",
-
-            // EXIF dates
-            $"-EXIF:DateTimeOriginal={exifDate}",
-            $"-EXIF:CreateDate={exifDate}",
-            $"-EXIF:ModifyDate={exifDate}",
-
-            // XMP dates
-            $"-XMP-xmp:CreateDate={xmpDate}",
-            $"-XMP-xmp:ModifyDate={xmpDate}",
-            $"-XMP-xmp:MetadataDate={xmpDate}",
-            $"-XMP-exif:DateTimeOriginal={xmpDate}",
-            $"-XMP-exif:DateTimeDigitized={xmpDate}",
-            $"-XMP-tiff:DateTime={exifDate}",
-
-            // QuickTime dates (for MP4/MOV)
-            $"-QuickTime:CreateDate={utcDate}",
-            $"-QuickTime:ModifyDate={utcDate}",
-            $"-QuickTime:TrackCreateDate={utcDate}",
-            $"-QuickTime:TrackModifyDate={utcDate}",
-            $"-QuickTime:MediaCreateDate={utcDate}",
-            $"-QuickTime:MediaModifyDate={utcDate}",
-            
-            // PNG tIME chunk
-            $"-PNG:ModifyDate={pngDate}",
-
-            filePath
-        };
-
-        await ExecuteAsync(args);
-    }
-
     private static async Task<string> ExecuteAsync(IReadOnlyList<string> args)
     {
         using var process = new Process

@@ -1,5 +1,5 @@
+using EdsMediaArchiver.Definitions;
 using EdsMediaArchiver.Services.Compressors;
-using EdsMediaArchiver.Services.Logging;
 
 namespace EdsMediaArchiver.Services.Processors;
 
@@ -9,39 +9,37 @@ public interface ICompressProcessor
     /// Fixes the file extension and/or compresses the file based on request flags.
     /// Returns null if no action was taken.
     /// </summary>
-    Task<string> ProcessAsync(string sourcePath, string outputDirectory, string fileType, CompressorMode compressorMode);
+    Task<bool> ProcessAsync(string sourcePath);
 }
 
-public class CompressProcessor(IEnumerable<IMediaCompressor> compressors, IProcessLogger processLogger) : ICompressProcessor
+public class CompressProcessor(IEnumerable<IMediaCompressor> compressors) : ICompressProcessor
 {
-    public async Task<string> ProcessAsync(string sourcePath, string outputDirectory, string fileType, CompressorMode compressorMode)
+    public async Task<bool> ProcessAsync(string sourcePath)
     {
-        var compressor = compressors.FirstOrDefault(c => c.IsSupported(fileType));
+        if (ExtensionsTypes.ExtensionToFileType.TryGetValue(Path.GetExtension(sourcePath), out var fileType) == false)
+            throw new NotSupportedException($"File not supported");
+
+        var compressor = compressors.FirstOrDefault(c => c.IsSupported(fileType)) ?? throw new NotSupportedException($"File not supported");
         if (compressor != null)
         {
-            var outputPath = await compressor.CompressAsync(sourcePath, outputDirectory, fileType, compressorMode);
+            var outputDirectory = Path.GetDirectoryName(sourcePath) ?? throw new Exception("Directory cannot be empty");
+            var outputPath = await compressor.CompressAsync(sourcePath, outputDirectory, fileType);
 
-            if (string.Equals(sourcePath, outputPath, StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(sourcePath, outputPath, StringComparison.OrdinalIgnoreCase) == false)
             {
-                // Output == Input, so SKIPPED is the only possible case.
-                processLogger.Log(IProcessLogger.Operation.Convert, IProcessLogger.Result.SKIPPED, sourcePath, "");
-                return outputPath;
-            }
-            else
-            {
-                File.Delete(sourcePath);
-                File.Move(outputPath, sourcePath, overwrite: true);
-                if (compressorMode == CompressorMode.Convert)
+                if (Path.GetExtension(sourcePath).Equals(Path.GetExtension(outputPath), StringComparison.OrdinalIgnoreCase))
                 {
-                    processLogger.Log(IProcessLogger.Operation.Convert, IProcessLogger.Result.SUCCESS, sourcePath, $"{outputPath,-60}");
+                    // Output has same extension, so just overwrite the source file.
+                    File.Move(outputPath, sourcePath, overwrite: true);
                 }
                 else
                 {
-                    processLogger.Log(IProcessLogger.Operation.Compress, IProcessLogger.Result.SUCCESS, sourcePath, $"{outputPath,-60}");
+                    // Output has diff extension, so delete the source file to replace it.
+                    File.Delete(sourcePath);
                 }
-                return outputPath;
+                return true;
             }
         }
-        return sourcePath;
+        return false;
     }
 }

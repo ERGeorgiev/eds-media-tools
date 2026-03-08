@@ -19,10 +19,10 @@ internal static class ConsoleHelper
         Console.WriteLine("      Video  (ex. AVI, MKV, WMV, MOV, 3GP, GIF) -> MP4 (H.264 + AAC)");
         Console.WriteLine("      Audio  (ex. MP3, WAV, FLAC, AAC, WMA, M4A) -> OGG (Vorbis)");
         Console.Write("    (Y/n): ");
-        prefs.Compress = ConsoleHelper.AskYesNo();
+        var compress = ConsoleHelper.AskYesNo();
         Console.WriteLine();
 
-        if (prefs.Compress)
+        if (compress)
         {
             Console.WriteLine("  Also resize images and videos as part of compression?");
             Console.WriteLine("    Resizes to max 1920 width or height.");
@@ -41,24 +41,24 @@ internal static class ConsoleHelper
             Console.WriteLine();
         }
 
-        Console.WriteLine("  Set file dates?");
-        Console.WriteLine("    Writes date metadata and sets filesystem Created/Modified dates.");
-        Console.Write("    (Y/n): ");
-        prefs.SetDates = ConsoleHelper.AskYesNo();
-
-        if (!prefs.Compress && !prefs.Standardize && !prefs.SetDates)
+        if (!compress && !prefs.Standardize)
         {
             Console.WriteLine();
             Console.WriteLine("  No options selected.");
             return false;
         }
 
+        Console.WriteLine("  When processing audio, default to .MP4 instead of .OGG?");
+        Console.WriteLine("    This will allow it to be displayed in image galleries.");
+        Console.Write("    (Y/n): ");
+        prefs.AudioToMp4 = ConsoleHelper.AskYesNo();
+
         Console.WriteLine();
         Console.WriteLine("  Selected options:");
-        if (prefs.Compress) Console.WriteLine("    - Compress files");
+        if (compress) Console.WriteLine("    - Compress files");
         if (prefs.ResizeOnCompress) Console.WriteLine("    - Resize files");
         if (prefs.Standardize) Console.WriteLine("    - Standardize files");
-        if (prefs.SetDates) Console.WriteLine("    - Set file dates");
+        if (prefs.AudioToMp4) Console.WriteLine("    - Audio will be .MP4 instead of .OGG");
 
         return true;
     }

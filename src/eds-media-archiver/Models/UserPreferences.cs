@@ -1,9 +1,15 @@
 namespace EdsMediaArchiver.Models;
 
-public record UserPreferences
+public interface IUserPreferences
 {
-    public bool Compress { get; set; } = false;
+    bool AudioToMp4 { get; }
+    bool ResizeOnCompress { get; }
+    bool Standardize { get; }
+}
+
+public record UserPreferences : IUserPreferences
+{
     public bool ResizeOnCompress { get; set; } = false;
     public bool Standardize { get; set; } = false;
-    public bool SetDates { get; set; } = false;
+    public bool AudioToMp4 { get; set; } = false;
 }

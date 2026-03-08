@@ -1,33 +1,35 @@
+using EdsMediaArchiver.Definitions;
 using EdsMediaArchiver.Helpers;
 using EdsMediaArchiver.Services;
-using EdsMediaArchiver.Services.Logging;
+using EdsMediaArchiver.Services.Compressors;
 using EdsMediaArchiver.Services.Processors;
+using EdsMediaArchiver.Services.Resolvers;
 using Microsoft.Extensions.DependencyInjection;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Reflection;
 
 Console.WriteLine();
-Console.WriteLine("================================================");
 Console.WriteLine($"  Ed's Media Archiver v{Assembly.GetEntryAssembly()?.GetName().Version?.ToString(2)}");
 Console.WriteLine("  Prepare your media files for storage.");
-Console.WriteLine("================================================");
 Console.WriteLine();
 
-if (Debugger.IsAttached)
-{
-    var currentDirectory = new DirectoryInfo(Directory.GetCurrentDirectory());
-    var solutionDir = currentDirectory.Parent!.Parent!.Parent!.FullName;
-    args = [$"{Path.Combine(solutionDir, "TestData")}"];
-}
-
-// Validate input paths
+// Validate Input
 if (args.Length == 0)
 {
-    Console.Error.WriteLine("[ERROR] No folders provided. Pass folder paths as arguments.");
-    Console.WriteLine("To use, just drop files or folders to be processed (recursively) on top of this .exe file.");
-    Console.Write("Press any key to exit...");
-    Console.ReadLine();
-    return 1;
+    if (Debugger.IsAttached)
+    {
+        var solutionDir = new DirectoryInfo(Directory.GetCurrentDirectory()).Parent!.Parent!.Parent!.FullName;
+        args = [$"{Path.Combine(solutionDir, "TestData")}"];
+    }
+    else
+    {
+        Console.Error.WriteLine("[ERROR] No input provided");
+        Console.WriteLine("To use, just drop files or folders to be processed (recursively) on top of this .exe file.");
+        Console.Write("Press any key to exit...");
+        Console.ReadLine();
+        return 1;
+    }
 }
 
 Console.WriteLine($"  Input:");
@@ -50,25 +52,28 @@ if (ConsoleHelper.AskYesNo() == false)
     Console.ReadLine();
     return 0;
 }
+Console.WriteLine();
 
 // Services
-var serviceProvider = ServiceProviderHelper.Create();
-var mediaFileProcessor = serviceProvider.GetRequiredService<IArchiveProcessor>();
+var serviceProvider = ServiceProviderHelper.Create(prefs);
+var filExtensionResolver = serviceProvider.GetRequiredService<IFileExtensionResolver>();
 var fileRequestFactory = serviceProvider.GetRequiredService<IArchiveRequestFactory>();
-var logs = serviceProvider.GetRequiredService<IProcessLogger>();
+var compressProcessor = serviceProvider.GetRequiredService<ICompressProcessor>();
 
 // Process each folder
+ConcurrentBag<string> errors = [];
 foreach (var inputPath in args)
 {
-    Console.WriteLine("────────────────────────────────────────────────");
-    Console.WriteLine($"Processing: {inputPath}");
     Console.WriteLine();
+    Console.WriteLine($"  Processing: {inputPath}");
 
     var isDir = Directory.Exists(inputPath);
     var isFile = File.Exists(inputPath);
     if (isDir == false && isFile == false)
     {
-        Console.Error.WriteLine($"[ERROR] Target not found: {inputPath}");
+        var msg = $"    [ERROR] Target not found: {inputPath}";
+        errors.Add(msg);
+        Console.Error.WriteLine(msg);
         continue;
     }
 
@@ -84,49 +89,49 @@ foreach (var inputPath in args)
         dirPath = Path.GetDirectoryName(inputPath) ?? "";
         files = [inputPath];
     }
-    Console.WriteLine($"  Found {files.Count} files");
-    Console.WriteLine();
+    Console.WriteLine($"    Found {files.Count} files");
 
-    var printLock = new object();
-    var options = new ParallelOptions
+    await Parallel.ForEachAsync(files, new ParallelOptions() { MaxDegreeOfParallelism = 2 }, async (filePath, ct) =>
     {
-        MaxDegreeOfParallelism = 1
-    };
-    await Parallel.ForEachAsync(files, options, async (file, token) =>
-    {
-        var request = fileRequestFactory.Create(dirPath, file);
-        request.Compress = prefs.Compress;
-        request.ReizeOnCompress = prefs.ResizeOnCompress;
-        request.Standardize = prefs.Standardize;
-        request.SetDates = prefs.SetDates;
-
         await Task.Run(async () => {
-            await mediaFileProcessor.ProcessFileAsync(request);
-        }, token);
-
-        lock (printLock)
-        {
-            Console.WriteLine($"FILE: {request.OriginalPath.Absolute}");
-            logs.PrintLogs(request.OriginalPath.Absolute);
-            if (request.OriginalPath != request.NewPath)
+            var fileRelativePath = Path.GetRelativePath(dirPath, filePath);
+            try
             {
-                logs.PrintLogs(request.NewPath.Absolute);
+                var newPath = await filExtensionResolver.RestoreExtension(filePath);
+                if (filePath.Equals(newPath, StringComparison.OrdinalIgnoreCase) == false)
+                {
+                    var newRelativePath = Path.GetRelativePath(dirPath, newPath);
+                    Console.WriteLine($"    [RENAME] File '{fileRelativePath}' to '{newRelativePath}'");
+                    filePath = newPath;
+                    fileRelativePath = newRelativePath;
+                }
+
+                var compressed = await compressProcessor.ProcessAsync(filePath);
+                if (compressed)
+                    Console.WriteLine($"    [PROCESSED] File '{fileRelativePath}'");
+                else
+                    Console.WriteLine($"    [SKIP] File '{fileRelativePath}' has no need for processing");
             }
-        }
+            catch (Exception e)
+            {
+                var msg = $"    [ERROR] File '{Path.GetRelativePath(dirPath, filePath)}': {e.Message}";
+                errors.Add(msg);
+                Console.Error.WriteLine(msg);
+            }
+        }, ct);
     });
 
+    Console.WriteLine($"    Finished Processing: {inputPath}");
     Console.WriteLine();
-    Console.WriteLine($"  Finished Processing: {inputPath}");
 }
 
-logs.PrintSummary();
-
-Console.WriteLine();
-Console.WriteLine("================================================");
 Console.WriteLine("  All done!");
-Console.WriteLine("================================================");
 Console.WriteLine();
-Console.Write("Press any key to exit...");
+Console.ForegroundColor = ConsoleColor.Red;
+Console.WriteLine($"  Errors:{Environment.NewLine}{string.Join(Environment.NewLine, errors)}");
+Console.ResetColor();
+Console.WriteLine();
+Console.Write("Press Enter to exit...");
 ConsoleHelper.FlushInput();
 Console.ReadLine();
 

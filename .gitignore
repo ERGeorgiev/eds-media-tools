@@ -365,3 +365,5 @@ FodyWeavers.xsd
 *.zip
 *.exe
 /JustScroll-v1.0.0-debug.7z
+/src/eds-media-archiver/TestData
+/src/eds-media-archiver/TestData - Copy
