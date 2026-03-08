@@ -91,8 +91,7 @@ public partial class FilenameDateReader(IDateValidator dateValidator) : IFilenam
     private static partial Regex TimestampMillisPattern();
 }
 
-
-// Improvement:
+// Addon Improvement:
 
 //using Microsoft.Recognizers.Text;
 //using Microsoft.Recognizers.Text.DateTime;

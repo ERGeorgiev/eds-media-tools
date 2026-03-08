@@ -6,8 +6,6 @@ namespace EdsMediaArchiver.Services;
 public interface IExifToolService
 {
     Task CopyMetadata(string sourceFilePath, string destinationFilePath);
-    Task<bool> IsAlreadyTagged(string filePath);
-    Task WriteTagsAsync(string filePath, IReadOnlyList<string> tags);
     Task WriteDatesAsync(string filePath, DateTimeOffset date);
 }
 
@@ -27,73 +25,6 @@ public class ExifToolService : IExifToolService
         };
 
         await ExecuteAsync(args);
-    }
-
-    public async Task WriteTagsAsync(string filePath, IReadOnlyList<string> tags)
-    {
-        if (tags.Count == 0)
-            return;
-
-        var clears = new[]
-        {
-            "-XPKeywords=",
-            "-Keywords=",
-            "-Subject=",
-            "-QuickTime:Category=",
-            "-XMP-dc:Subject=",
-            "-Microsoft:Category=",
-        };
-
-        var args = new List<string>(clears);
-
-        foreach (var tag in tags)
-            args.Add($"-Keywords={tag}");
-
-        foreach (var tag in tags)
-            args.Add($"-Subject={tag}");
-
-        args.Add($"-XPKeywords={string.Join(";", tags)}");
-
-        // QuickTime:Category is what Windows Explorer reads as "Tags"
-        args.Add($"-QuickTime:Category={string.Join(";", tags)}");
-        // Also write XMP:Subject for non-Windows tools (Lightroom, digiKam, etc.)
-        foreach (var tag in tags)
-            args.Add($"-XMP-dc:Subject={tag}");
-
-        // This is what Windows Explorer reads as "Tags"
-        args.Add($"-Microsoft:Category={string.Join(";", tags)}");
-
-        args.Add("-overwrite_original");
-        args.Add(filePath);
-
-        args.Insert(0, "-f");
-        args.Insert(1, "-m");
-
-        await ExecuteAsync(args);
-    }
-
-    public async Task<bool> IsAlreadyTagged(string filePath)
-    {
-        var args = new List<string>
-        {
-            "-XPKeywords",
-            "-Keywords",
-            "-Subject",
-            "-QuickTime:Category",
-            "-XMP-dc:Subject",
-            "-Microsoft:Category",
-            "-s",   // short tag names
-            filePath
-        };
-        var output = await ExecuteAsync(args);
-        return output
-            .Split('\n', StringSplitOptions.RemoveEmptyEntries)
-            .Select(line => line.Split(':', 2))
-            .Where(parts => parts.Length == 2)
-            .Select(parts => parts[1].Trim())
-            .Where(part => string.IsNullOrEmpty(part) == false)
-            .Distinct()
-            .Any();
     }
 
     public async Task WriteDatesAsync(string filePath, DateTimeOffset date)
@@ -130,7 +61,7 @@ public class ExifToolService : IExifToolService
             $"-QuickTime:MediaCreateDate={utcDate}",
             $"-QuickTime:MediaModifyDate={utcDate}",
             
-            // PNG tIME chunk (traditionally UTC)
+            // PNG tIME chunk
             $"-PNG:ModifyDate={pngDate}",
 
             filePath
