@@ -40,7 +40,3 @@ Output goes to `bin/Release/net8.0/win-x64/publish/`.
 ## Contributing
 
 Contributions are welcome! Feel free to open an issue or submit a pull request.
-
-## License
-
-[MIT](LICENSE)
