@@ -1,6 +1,7 @@
 using EdsMediaArchiver.Definitions;
 using EdsMediaArchiver.Helpers;
 using TagLib;
+using File = System.IO.File;
 
 namespace EdsMediaArchiver.Services.Resolvers;
 
@@ -32,10 +33,17 @@ public class FileExtensionResolver(IFileTypeResolver fileTypeResolver) : IFileEx
             return Task.FromResult(sourcePath);
 
         var oldPath = sourcePath;
+        var lastWriteTime = File.GetLastWriteTimeUtc(oldPath);
+        var creationTime = File.GetCreationTimeUtc(oldPath);
         var newPath = Path.ChangeExtension(oldPath, correctExt);
         newPath = FileHelper.GetUniqueFilePath(newPath);
 
-        System.IO.File.Move(oldPath, newPath);
+        File.Move(oldPath, newPath);
+
+        // Carry the original filesystem modification date onto the new file
+        File.SetLastWriteTimeUtc(newPath, lastWriteTime);
+        File.SetCreationTimeUtc(newPath, creationTime);
+
         return Task.FromResult(newPath);
     }
 }

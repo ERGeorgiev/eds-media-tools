@@ -105,6 +105,10 @@ public class VideoCompressor(IExifToolService exif, IUserPreferences preferences
 
         await exif.CopyMetadata(sourcePath, outputPath);
 
+        // Carry the original filesystem modification date onto the new file
+        File.SetLastWriteTimeUtc(outputPath, File.GetLastWriteTimeUtc(sourcePath));
+        File.SetCreationTimeUtc(outputPath, File.GetCreationTimeUtc(sourcePath));
+
         return outputPath;
     }
 }

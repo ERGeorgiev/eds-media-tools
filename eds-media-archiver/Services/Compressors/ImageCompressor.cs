@@ -76,6 +76,10 @@ public class ImageCompressor(IExifToolService exif, IUserPreferences preferences
         await image.WriteAsync(outputPath, MagickFormat.Jpeg);
         await exif.CopyMetadata(sourcePath, outputPath);
 
+        // Carry the original filesystem modification date onto the new file
+        File.SetLastWriteTimeUtc(outputPath, File.GetLastWriteTimeUtc(sourcePath));
+        File.SetCreationTimeUtc(outputPath, File.GetCreationTimeUtc(sourcePath));
+
         return outputPath;
     }
 }

@@ -132,6 +132,10 @@ public class AudioCompressor : IMediaCompressor
             }
         }
 
+        // Carry the original filesystem modification date onto the new file
+        File.SetLastWriteTimeUtc(outputPath, File.GetLastWriteTimeUtc(sourcePath));
+        File.SetCreationTimeUtc(outputPath, File.GetCreationTimeUtc(sourcePath));
+
         return outputPath;
     }
 }
