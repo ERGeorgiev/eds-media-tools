@@ -3,6 +3,7 @@ using EdsMediaArchiver.Helpers;
 using EdsMediaArchiver.Models;
 using FFMpegCore;
 using FFMpegCore.Enums;
+using System.Diagnostics;
 
 namespace EdsMediaArchiver.Services.Compressors;
 
@@ -37,22 +38,19 @@ public class VideoCompressor(IExifToolService exif, IUserPreferences preferences
             {
                 return sourcePath;
             }
-            else
+            // Prevent compression of already-compressed files.
+            var analysis = await FFProbe.AnalyseAsync(sourcePath);
+            var videoStream = analysis.VideoStreams.FirstOrDefault();
+            if (videoStream != null)
             {
-                // Prevent compression of already compressed files.
-                var analysis = await FFProbe.AnalyseAsync(sourcePath);
-                var videoStream = analysis.VideoStreams.FirstOrDefault();
-                if (videoStream != null)
-                {
-                    bool isSmallEnough = videoStream.Width <= 1920 && videoStream.Height <= 1920;
-                    bool isModernCodec = videoStream.CodecName == "h264" || videoStream.CodecName == "hevc";
-                    double bitrateKbps = analysis.Format.BitRate / 1000.0;
-                    bool isLowBitrate = bitrateKbps <= 10000;
+                bool isSmallEnough = videoStream.Width <= 1920 && videoStream.Height <= 1920;
+                bool isModernCodec = videoStream.CodecName is "h264" or "hevc";
+                double bitrateKbps = analysis.Format.BitRate / 1000.0;
+                bool isLowBitrate = bitrateKbps <= 10000;
 
-                    if (isSmallEnough && isLowBitrate && isModernCodec)
-                    {
-                        return sourcePath; // Already compressed
-                    }
+                if (isSmallEnough && isLowBitrate && isModernCodec)
+                {
+                    return sourcePath; // Already compressed
                 }
             }
         }
@@ -60,6 +58,7 @@ public class VideoCompressor(IExifToolService exif, IUserPreferences preferences
         outputPath = FileHelper.GetUniqueFilePath(outputPath);
         if (preferences.Standardize)
         {
+            // Stream copy: no re-encode, so colour signalling passes through untouched.
             await FFMpegArguments
                 .FromFileInput(sourcePath)
                 .OutputToFile(outputPath, overwrite: false, options =>
@@ -74,6 +73,8 @@ public class VideoCompressor(IExifToolService exif, IUserPreferences preferences
         }
         else
         {
+            var colour = await ProbeColourAsync(sourcePath);
+            var (videoFilter, colourArgs) = BuildColourPipeline(colour, preferences.ResizeOnCompress);
             await FFMpegArguments
                 .FromFileInput(sourcePath)
                 .OutputToFile(outputPath, overwrite: false, options =>
@@ -87,17 +88,11 @@ public class VideoCompressor(IExifToolService exif, IUserPreferences preferences
                         .WithCustomArgument("-pix_fmt yuv420p")
                         .WithCustomArgument("-map_metadata 0")
                         .WithCustomArgument("-profile:v main")
-                        .WithCustomArgument("-color_range 1") // Forces limited range
-                        .WithCustomArgument("-movflags +faststart");
-                    if (preferences.ResizeOnCompress)
+                        .WithCustomArgument("-movflags +faststart")
+                        .WithCustomArgument($"-vf \"{videoFilter}\"");
+                    foreach (var arg in colourArgs)
                     {
-                        // If width/height is > 1920, scale width to 1920
-                        options.WithCustomArgument("-vf \"scale=1920:1920:force_original_aspect_ratio=decrease:force_divisible_by=2\"");
-                    }
-                    else
-                    {
-                        // Ensure current dimensions are even (required for yuv420p)
-                        options.WithCustomArgument("-vf \"scale='trunc(iw/2)*2:trunc(ih/2)*2'\"");
+                        options.WithCustomArgument(arg);
                     }
                 })
                 .ProcessAsynchronously();
@@ -111,4 +106,130 @@ public class VideoCompressor(IExifToolService exif, IUserPreferences preferences
 
         return outputPath;
     }
+
+    private sealed record ColourInfo(string Range, string Space, string Primaries, string Transfer)
+    {
+        /// <summary>
+        /// Newer phones record HDR (BT.2020 + PQ/HLG). An 8-bit H.264 SDR encode
+        /// cannot carry that, so HDR sources must be tone-mapped, not range-fixed.
+        /// </summary>
+        public bool IsHdr =>
+            Transfer is "smpte2084" or "arib-std-b67"   // PQ or HLG
+            || Primaries == "bt2020"
+            || Space is "bt2020nc" or "bt2020c";
+    }
+
+    /// <summary>
+    /// Reads colour signalling via ffprobe directly. FFMpegCore's VideoStream
+    /// does not reliably surface color_range across versions, so we don't depend
+    /// on it. Returns empty strings for unspecified/unknown values.
+    /// </summary>
+    private static async Task<ColourInfo> ProbeColourAsync(string path)
+    {
+        var psi = new ProcessStartInfo
+        {
+            FileName = "ffprobe",
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        psi.ArgumentList.Add("-v");
+        psi.ArgumentList.Add("error");
+        psi.ArgumentList.Add("-select_streams");
+        psi.ArgumentList.Add("v:0");
+        psi.ArgumentList.Add("-show_entries");
+        psi.ArgumentList.Add("stream=color_range,color_space,color_primaries,color_transfer");
+        psi.ArgumentList.Add("-of");
+        psi.ArgumentList.Add("default=noprint_wrappers=1");
+        psi.ArgumentList.Add(path);
+
+        using var proc = Process.Start(psi)
+            ?? throw new InvalidOperationException("Failed to start ffprobe.");
+        var stdout = await proc.StandardOutput.ReadToEndAsync();
+        await proc.WaitForExitAsync();
+
+        return new ColourInfo(
+            Read("color_range"),
+            Read("color_space"),
+            Read("color_primaries"),
+            Read("color_transfer"));
+
+        string Read(string key)
+        {
+            foreach (var line in stdout.Split('\n'))
+            {
+                if (line.StartsWith(key + "=", StringComparison.Ordinal))
+                {
+                    var value = line[(key.Length + 1)..].Trim();
+                    return value is "" or "unknown" or "N/A" ? "" : value;
+                }
+            }
+            return "";
+        }
+    }
+
+    /// <summary>
+    /// Builds the <c>-vf</c> chain plus the colour output arguments.
+    /// SDR: preserve source range, tag to match (unknown defaults to limited/tv,
+    /// which avoids the "limited data tagged full" washout — the common case).
+    /// HDR: tone-map BT.2020 PQ/HLG down to BT.709 limited in linear light.
+    /// </summary>
+    private static (string VideoFilter, string[] ColourArgs) BuildColourPipeline(ColourInfo c, bool resize)
+    {
+        string scale = resize
+            ? "scale=1920:1920:force_original_aspect_ratio=decrease:force_divisible_by=2"
+            : "scale='trunc(iw/2)*2:trunc(ih/2)*2'";
+
+        if (c.IsHdr)
+        {
+            // npl (nominal peak luminance) and the tonemap operator are aesthetic
+            // choices — tune per source. This deliberately flattens HDR to SDR.
+            string vf =
+                $"zscale=transferin={Or(c.Transfer, "smpte2084")}:" +
+                $"matrixin={Or(c.Space, "bt2020nc")}:" +
+                $"primariesin={Or(c.Primaries, "bt2020")}:transfer=linear:npl=100," +
+                "format=gbrpf32le,tonemap=hable:desat=0," +
+                "zscale=primaries=bt709:transfer=bt709:matrix=bt709:range=tv," +
+                $"{scale},format=yuv420p";
+
+            return (vf, Bt709Args("tv"));
+        }
+
+        // SDR: preserve the source range. Identity zscale (rangein == range) does
+        // NOT remap samples; it only pins metadata and blocks the implicit
+        // yuvj420p->yuv420p full->limited shift. setparams keeps the frame's range
+        // tag aligned with the -color_range output flag.
+        string range = c.Range == "pc" ? "pc" : "tv";
+        string zr = range == "pc" ? "full" : "limited";
+        string space = Or(c.Space, "bt709");
+        string primaries = Or(c.Primaries, "bt709");
+        string transfer = Or(c.Transfer, "bt709");
+
+        string sdrVf =
+            $"zscale=rangein={zr}:range={zr},{scale},format=yuv420p,setparams=range={range}";
+
+        var args = new[]
+        {
+            $"-color_range {range}",
+            $"-colorspace {space}",
+            $"-color_primaries {primaries}",
+            $"-color_trc {transfer}",
+            $"-x264-params \"range={range}:colormatrix={space}:transfer={transfer}:colorprim={primaries}\""
+        };
+
+        return (sdrVf, args);
+
+        static string[] Bt709Args(string range) =>
+        [
+            $"-color_range {range}",
+            "-colorspace bt709",
+            "-color_primaries bt709",
+            "-color_trc bt709",
+            $"-x264-params \"range={range}:colormatrix=bt709:transfer=bt709:colorprim=bt709\""
+        ];
+    }
+
+    private static string Or(string value, string fallback) =>
+        string.IsNullOrEmpty(value) ? fallback : value;
 }
