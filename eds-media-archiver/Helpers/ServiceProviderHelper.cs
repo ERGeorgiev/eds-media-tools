@@ -35,6 +35,7 @@ internal static class ServiceProviderHelper
             // Other
             .AddSingleton<IArchiveRequestFactory, ArchiveRequestFactory>()
             .AddSingleton<IExifToolService, ExifToolService>()
+            .AddSingleton<IJpegEncoder>(_ => new MozJpegCliEncoder(Path.Combine(AppContext.BaseDirectory, "tools", "mozjpeg-v4.1.1-cjpeg.exe")))
 
             .BuildServiceProvider();
 

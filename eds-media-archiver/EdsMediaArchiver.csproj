@@ -5,14 +5,21 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <Version>1.6</Version>
+    <Version>1.7</Version>
     <ProductName>EdsMediaArchiver</ProductName>
   </PropertyGroup>
 
   <ItemGroup>
     <None Remove="resources\music.jpg" />
   </ItemGroup>
-
+  
+  <ItemGroup>
+    <None Include="tools\mozjpeg-v4.1.1-cjpeg.exe">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+    </None>
+  </ItemGroup>
+  
   <ItemGroup>
     <EmbeddedResource Include="resources\music.jpg" />
   </ItemGroup>
@@ -24,15 +31,9 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.8" />
     <PackageReference Include="TagLibSharp" Version="2.3.0" />
   </ItemGroup>
-  
-  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
-    <PublishSingleFile>true</PublishSingleFile>
-    <SelfContained>true</SelfContained>
-    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
-    <PublishReadyToRun>true</PublishReadyToRun>
-    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
-    <DebugType>none</DebugType>
-    <DebugSymbols>false</DebugSymbols>
-  </PropertyGroup>
+
+  <ItemGroup>
+    <Folder Include="tools\" />
+  </ItemGroup>
 
 </Project>
